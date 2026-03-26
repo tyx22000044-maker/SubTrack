@@ -23,7 +23,7 @@ Focused sprint fixing the 4 highest-impact UX gaps.
 
 ---
 
-## [0.3.0] — 2026-03-26 · 数据管理 & 用户档案 Data & Profile
+## [0.3.0] — 2026-03-24 · 数据管理 & 用户档案 Data & Profile
 
 ### ✅ 新增 / Added
 - **导出功能**：支持导出 PDF 报告（含品牌设计、订阅明细表格、月度总支出）和 CSV 表格数据，通过系统分享面板分享到任意 App。Export subscriptions as a branded PDF report or CSV spreadsheet via share sheet.
@@ -39,7 +39,7 @@ Focused sprint fixing the 4 highest-impact UX gaps.
 
 ---
 
-## [0.2.0] — 2026-03-25 · 核心功能完整版 Core Feature Complete
+## [0.2.0] — 2026-03-14 · 核心功能完整版 Core Feature Complete
 
 ### ✅ 新增 / Added
 - **Onboarding 引导流程**：3 页滑动引导（欢迎 → 设置头像&昵称 → 完成），含自定义滑动按钮动效（拖拽超过 75% 触发）。3-page onboarding with custom swipe-to-continue button animation.
@@ -61,7 +61,7 @@ Focused sprint fixing the 4 highest-impact UX gaps.
 
 ---
 
-## [0.1.0] — 2026-03-25 · 项目初始化 Initial Release
+## [0.1.0] — 2026-03-09 · 项目初始化 Initial Release
 
 ### ✅ 新增 / Added
 - **项目立项**：确定产品方向（iOS 订阅管理 App），完成 PRD v0.1 ~ v0.4，包含用户故事、功能优先级矩阵、AI 功能 Spec。Product direction set; PRD written across 4 versions.
