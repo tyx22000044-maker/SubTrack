@@ -1,17 +1,24 @@
-//
-//  SubTrackApp.swift
-//  SubTrack
-//
-//  Created by 谈昀轩的Macbook on 2026-03-25.
-//
-
 import SwiftUI
 
 @main
 struct SubTrackApp: App {
+    @State private var showSplash = true
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ZStack {
+                // Main app loads in background — zero extra wait time after splash
+                ContentView()
+
+                if showSplash {
+                    SplashView {
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            showSplash = false
+                        }
+                    }
+                    .transition(.opacity)
+                }
+            }
         }
     }
 }
