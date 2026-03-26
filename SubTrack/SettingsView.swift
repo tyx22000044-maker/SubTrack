@@ -3,7 +3,12 @@ import PhotosUI
 
 struct SettingsView: View {
     @Environment(AppSettings.self) var settings
+    @Environment(SubscriptionStore.self) var store
     @State private var showEditProfile = false
+    @State private var showExportSheet = false
+    @State private var showClearAlert = false
+    @State private var exportItems: [Any] = []
+    @State private var showExportFormatPicker = false
 
     var body: some View {
         ScrollView {
@@ -83,10 +88,43 @@ struct SettingsView: View {
 
                 // Data & Support
                 SettingsGroup(title: settings.dataSection) {
-                    SettingItem(icon: "hand.raised.fill",         color: Color.appOutline,   title: settings.privacyLabel,   value: "")
-                    SettingItem(icon: "bubble.left.fill",         color: Color.appOutline,   title: settings.feedbackLabel,  value: "")
-                    SettingItem(icon: "trash.fill",               color: Color.appSecondary, title: settings.clearCacheLabel, value: "124.5 MB")
-                    SettingItem(icon: "square.and.arrow.up.fill", color: Color.appOutline,   title: settings.exportLabel,    value: "", isLast: true)
+                    SettingItem(icon: "hand.raised.fill",  color: Color.appOutline, title: settings.privacyLabel,  value: "")
+                    SettingItem(icon: "bubble.left.fill",  color: Color.appOutline, title: settings.feedbackLabel, value: "")
+
+                    // Clear Cache
+                    Button(action: { showClearAlert = true }) {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8).fill(Color.appSecondary.opacity(0.2)).frame(width: 34, height: 34)
+                                Image(systemName: "trash.fill").font(.system(size: 15)).foregroundColor(Color.appSecondary)
+                            }
+                            Text(settings.clearCacheLabel).font(.system(size: 15)).foregroundColor(Color.appOnSurface)
+                            Spacer()
+                            Text(String(format: "%.1f MB", Double(store.subscriptions.count) * 0.8 + 12.4))
+                                .font(.system(size: 14)).foregroundColor(Color.appOnSurfaceVariant)
+                            Image(systemName: "chevron.right").font(.system(size: 12)).foregroundColor(Color.appOutline)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 13)
+                        .overlay(alignment: .bottom) {
+                            Rectangle().fill(Color.appOutlineVariant.opacity(0.5)).frame(height: 0.5).padding(.leading, 62)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    // Export
+                    Button(action: { showExportFormatPicker = true }) {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8).fill(Color.appPrimary.opacity(0.2)).frame(width: 34, height: 34)
+                                Image(systemName: "square.and.arrow.up.fill").font(.system(size: 15)).foregroundColor(Color.appPrimary)
+                            }
+                            Text(settings.exportLabel).font(.system(size: 15)).foregroundColor(Color.appOnSurface)
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.system(size: 12)).foregroundColor(Color.appOutline)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 13)
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 20)
 
@@ -97,7 +135,49 @@ struct SettingsView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color.appBackground)
+        // Export format picker
+        .confirmationDialog(
+            settings.s("选择导出格式", "Choose Export Format"),
+            isPresented: $showExportFormatPicker,
+            titleVisibility: .visible
+        ) {
+            Button("PDF — \(settings.s("精美报告", "Formatted Report"))") {
+                let url = generatePDF(subscriptions: store.subscriptions, settings: settings, store: store)
+                exportItems = [url]
+                showExportSheet = true
+            }
+            Button("CSV — \(settings.s("表格数据", "Spreadsheet Data"))") {
+                let url = csvFileURL(subscriptions: store.subscriptions, settings: settings)
+                exportItems = [url]
+                showExportSheet = true
+            }
+            Button(settings.s("取消", "Cancel"), role: .cancel) { }
+        }
+        // Share sheet
+        .sheet(isPresented: $showExportSheet) {
+            if let item = exportItems.first as? URL {
+                ShareSheet(items: [item])
+            }
+        }
+        // Clear cache alert
+        .alert(settings.s("清除所有数据？", "Clear All Data?"), isPresented: $showClearAlert) {
+            Button(settings.s("确认清除", "Clear All"), role: .destructive) {
+                store.subscriptions = []
+            }
+            Button(settings.s("取消", "Cancel"), role: .cancel) { }
+        } message: {
+            Text(settings.s("这将删除所有订阅数据，此操作不可撤销。", "This will delete all subscription data. This action cannot be undone."))
+        }
     }
+}
+
+// MARK: - Share Sheet (UIActivityViewController wrapper)
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Settings Group

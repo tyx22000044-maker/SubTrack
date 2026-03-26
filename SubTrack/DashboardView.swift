@@ -4,6 +4,7 @@ struct DashboardView: View {
     @Environment(SubscriptionStore.self) var store
     @Environment(AppSettings.self) var settings
     @State private var selectedSub: Subscription? = nil
+    var onSeeAll: (() -> Void)? = nil
 
     var body: some View {
         ScrollView {
@@ -63,7 +64,7 @@ struct DashboardView: View {
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(Color.appOnSurface)
                         Spacer()
-                        Button(settings.seeAllLabel) { }
+                        Button(settings.seeAllLabel) { onSeeAll?() }
                             .font(.system(size: 14))
                             .foregroundColor(Color.appPrimary)
                     }
@@ -151,6 +152,7 @@ struct SpendingCard: View {
 struct RenewalCard: View {
     let subscription: Subscription
     let settings: AppSettings
+    @State private var reminderSet = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -165,16 +167,34 @@ struct RenewalCard: View {
                     .foregroundColor(Color.appOnSurfaceVariant)
             }
             Spacer()
-            Button(settings.remindMeLabel) { }
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(Color.appOnPrimary)
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(Color.appPrimary)
-                .cornerRadius(20)
+            Button {
+                Task {
+                    if reminderSet {
+                        NotificationManager.shared.cancelReminder(for: subscription.id)
+                        reminderSet = false
+                    } else {
+                        let granted = await NotificationManager.shared.requestPermission()
+                        if granted {
+                            await NotificationManager.shared.scheduleReminder(for: subscription)
+                            reminderSet = true
+                        }
+                    }
+                }
+            } label: {
+                Text(reminderSet ? settings.s("已提醒 ✓", "Set ✓") : settings.remindMeLabel)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Color.appOnPrimary)
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(reminderSet ? Color.appPrimary.opacity(0.6) : Color.appPrimary)
+                    .cornerRadius(20)
+            }
         }
         .padding(16)
         .frame(width: 320)
         .glassCard()
+        .task {
+            reminderSet = await NotificationManager.shared.isReminderScheduled(for: subscription.id)
+        }
     }
 }
 

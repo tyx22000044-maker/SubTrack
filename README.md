@@ -93,15 +93,18 @@ open SubTrack/SubTrack.xcodeproj
 
 ## 🗺 产品路线图 · Roadmap
 
-- [x] 核心订阅管理（增删改查）
+- [x] 核心订阅管理（增删改查 + **编辑**）
 - [x] 数据本地持久化
 - [x] 多货币支持 + 汇率换算
 - [x] 中英双语界面
 - [x] Light / Dark / Auto 主题
 - [x] 用户 Onboarding 引导流程
+- [x] 用户档案（头像 + 昵称）
 - [x] 订阅详情页
-- [x] 排序与筛选
-- [ ] 推送通知（续费到期提醒）
+- [x] 排序与筛选 + **搜索**
+- [x] 推送通知（续费到期提醒）
+- [x] 数据导出（PDF 报告 + CSV）
+- [x] Insights 真实历史数据趋势图
 - [ ] Home Screen Widget
 - [ ] AI 账单扫描识别
 - [ ] iCloud 数据同步
@@ -121,5 +124,7 @@ open SubTrack/SubTrack.xcodeproj
 > "工具会变，但产品思维和用户洞察是永恒的。"
 
 ---
+
+📋 **完整开发日志** → [CHANGELOG.md](./CHANGELOG.md)
 
 *Built with ❤️ and AI · 2025–2026*

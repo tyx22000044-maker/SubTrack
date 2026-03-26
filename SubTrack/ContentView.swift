@@ -23,7 +23,7 @@ struct ContentView: View {
             Color.appBackground.ignoresSafeArea()
             Group {
                 switch selectedTab {
-                case .dashboard:     DashboardView()
+                case .dashboard:     DashboardView(onSeeAll: { selectedTab = .subscriptions })
                 case .subscriptions: SubscriptionsView()
                 case .insights:      InsightsView()
                 case .settings:      SettingsView()
@@ -38,6 +38,9 @@ struct ContentView: View {
             AddSubscriptionView()
                 .environment(store)
                 .environment(settings)
+        }
+        .task {
+            await NotificationManager.shared.rescheduleAll(for: store.subscriptions)
         }
         .fullScreenCover(isPresented: Binding(
             get: { !settings.hasCompletedOnboarding },

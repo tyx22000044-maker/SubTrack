@@ -10,6 +10,8 @@ struct SubscriptionsView: View {
     @State private var filterIndex = 0
     @State private var sortOption: SubSortOption = .renewalDate
     @State private var selectedSub: Subscription? = nil
+    @State private var searchText = ""
+    @State private var showSearch = false
 
     var filters: [String] {
         [settings.filterAll, settings.filterActive, settings.filterExpiring, settings.filterPaused]
@@ -23,12 +25,15 @@ struct SubscriptionsView: View {
         case 3:  base = store.subscriptions.filter { $0.status == .paused }
         default: base = store.subscriptions
         }
+        let sorted: [Subscription]
         switch sortOption {
-        case .renewalDate: return base.sorted { $0.daysUntilRenewal < $1.daysUntilRenewal }
-        case .amount:      return base.sorted { $0.monthlyAmount > $1.monthlyAmount }
-        case .category:    return base.sorted { $0.category.rawValue < $1.category.rawValue }
-        case .name:        return base.sorted { $0.name < $1.name }
+        case .renewalDate: sorted = base.sorted { $0.daysUntilRenewal < $1.daysUntilRenewal }
+        case .amount:      sorted = base.sorted { $0.monthlyAmount > $1.monthlyAmount }
+        case .category:    sorted = base.sorted { $0.category.rawValue < $1.category.rawValue }
+        case .name:        sorted = base.sorted { $0.name < $1.name }
         }
+        if searchText.isEmpty { return sorted }
+        return sorted.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
     var sortLabel: String {
@@ -48,8 +53,13 @@ struct SubscriptionsView: View {
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(Color.appOnSurface)
                 Spacer()
-                Button { } label: {
-                    Image(systemName: "magnifyingglass")
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showSearch.toggle()
+                        if !showSearch { searchText = "" }
+                    }
+                } label: {
+                    Image(systemName: showSearch ? "xmark" : "magnifyingglass")
                         .font(.system(size: 20)).foregroundColor(Color.appOnSurface)
                 }
                 Menu {
@@ -80,6 +90,31 @@ struct SubscriptionsView: View {
             .padding(.horizontal, 20)
             .padding(.top, 8)
             .padding(.bottom, 16)
+
+            // Search Bar
+            if showSearch {
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 15))
+                        .foregroundColor(Color.appOutline)
+                    TextField(settings.s("搜索订阅...", "Search subscriptions..."), text: $searchText)
+                        .font(.system(size: 15))
+                        .foregroundColor(Color.appOnSurface)
+                    if !searchText.isEmpty {
+                        Button { searchText = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 15))
+                                .foregroundColor(Color.appOutline)
+                        }
+                    }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 11)
+                .background(Color.appSurfaceContainer)
+                .cornerRadius(12)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
 
             // Filter Pills
             ScrollView(.horizontal, showsIndicators: false) {

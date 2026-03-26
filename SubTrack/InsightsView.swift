@@ -21,19 +21,39 @@ struct InsightsView: View {
         let isCurrent: Bool
     }
 
+    var symbol: String { settings.currencyDefault == 0 ? "¥" : "$" }
+
     func monthlyData() -> [MonthData] {
         let count = periodMonths[periodIndex]
-        let base = store.totalMonthlySpend
         let cal = Calendar.current
         let now = Date()
         let fmt = DateFormatter()
         fmt.dateFormat = "MMM"
-        let v = [0.88, 0.93, 0.97, 1.04, 0.95, 1.08, 0.91, 1.06, 0.99, 1.11, 1.03, 1.0]
+        let isCNY = settings.currencyDefault == 0
+
         return (0..<count).map { i in
             let offset = count - 1 - i
-            let date = cal.date(byAdding: .month, value: -offset, to: now) ?? now
-            let label = offset == 0 ? settings.s("本月", "Now") : fmt.string(from: date)
-            return MonthData(label: label, amount: base * v[i % v.count], isCurrent: offset == 0)
+            let targetDate = cal.date(byAdding: .month, value: -offset, to: now) ?? now
+
+            // Calculate end of that month
+            let comps = cal.dateComponents([.year, .month], from: targetDate)
+            let startOfMonth = cal.date(from: comps) ?? targetDate
+            let startOfNext = cal.date(byAdding: .month, value: 1, to: startOfMonth) ?? targetDate
+            let endOfMonth = cal.date(byAdding: .second, value: -1, to: startOfNext) ?? targetDate
+
+            // Sum subscriptions that were active (started) by that month
+            let amount = store.subscriptions
+                .filter { $0.status == .active && $0.startDate <= endOfMonth }
+                .reduce(0.0) { acc, sub in
+                    if isCNY {
+                        return acc + (sub.currency == .cny ? sub.monthlyAmount : sub.monthlyAmount * SubscriptionStore.usdToCnyRate)
+                    } else {
+                        return acc + (sub.currency == .usd ? sub.monthlyAmount : sub.monthlyAmount / SubscriptionStore.usdToCnyRate)
+                    }
+                }
+
+            let label = offset == 0 ? settings.s("本月", "Now") : fmt.string(from: targetDate)
+            return MonthData(label: label, amount: amount, isCurrent: offset == 0)
         }
     }
 
@@ -70,9 +90,9 @@ struct InsightsView: View {
 
                 // Stats Row
                 HStack(spacing: 10) {
-                    InsightStat(label: settings.totalSpendLabel, value: String(format: "$%.0f", totalSpend))
-                    InsightStat(label: settings.monthlyAvgLabel, value: String(format: "$%.0f", monthlyAvg))
-                    InsightStat(label: settings.peakMonthLabel,  value: String(format: "$%.0f", peakAmount))
+                    InsightStat(label: settings.totalSpendLabel, value: String(format: "%@%.0f", symbol, totalSpend))
+                    InsightStat(label: settings.monthlyAvgLabel, value: String(format: "%@%.0f", symbol, monthlyAvg))
+                    InsightStat(label: settings.peakMonthLabel,  value: String(format: "%@%.0f", symbol, peakAmount))
                 }
                 .padding(.horizontal, 20)
                 .animation(.easeInOut(duration: 0.2), value: periodIndex)
@@ -82,7 +102,7 @@ struct InsightsView: View {
                     Text(settings.monthlyTrendLabel)
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(Color.appOnSurface)
-                    MonthlyBarChart(data: currentData)
+                    MonthlyBarChart(data: currentData, symbol: symbol)
                 }
                 .padding(20)
                 .glassCard()
@@ -170,6 +190,7 @@ struct ComingSoonCard: View {
 // MARK: - Monthly Bar Chart
 struct MonthlyBarChart: View {
     let data: [InsightsView.MonthData]
+    var symbol: String = "$"
     var maxAmt: Double { data.map(\.amount).max() ?? 1 }
 
     var body: some View {
@@ -178,7 +199,7 @@ struct MonthlyBarChart: View {
                 ForEach(data) { item in
                     VStack(spacing: 0) {
                         if item.isCurrent {
-                            Text(String(format: "$%.0f", item.amount))
+                            Text(String(format: "%@%.0f", symbol, item.amount))
                                 .font(.system(size: 10, weight: .semibold))
                                 .foregroundColor(Color.appPrimary)
                                 .padding(.bottom, 4)

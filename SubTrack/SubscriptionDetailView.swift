@@ -6,6 +6,10 @@ struct SubscriptionDetailView: View {
     @Environment(AppSettings.self) var settings
     @Environment(\.dismiss) var dismiss
     @State private var showCancelAlert = false
+    @State private var showEdit = false
+    @State private var reminderScheduled = false
+    @State private var reminderLoading = false
+    @State private var showPermissionAlert = false
 
     private var dateFormatter: DateFormatter {
         let f = DateFormatter()
@@ -134,16 +138,37 @@ struct SubscriptionDetailView: View {
                     // Action Buttons
                     VStack(spacing: 12) {
                         Button {
+                            Task {
+                                reminderLoading = true
+                                if reminderScheduled {
+                                    NotificationManager.shared.cancelReminder(for: subscription.id)
+                                    reminderScheduled = false
+                                } else {
+                                    let granted = await NotificationManager.shared.requestPermission()
+                                    if granted {
+                                        await NotificationManager.shared.scheduleReminder(for: subscription)
+                                        reminderScheduled = true
+                                    } else {
+                                        showPermissionAlert = true
+                                    }
+                                }
+                                reminderLoading = false
+                            }
                         } label: {
                             HStack {
-                                Image(systemName: "bell.fill")
-                                Text(settings.setReminderLabel)
+                                Image(systemName: reminderScheduled ? "bell.fill" : "bell")
+                                Text(reminderScheduled
+                                     ? settings.s("已设置提醒 ✓", "Reminder Set ✓")
+                                     : settings.setReminderLabel)
                                     .font(.system(size: 16, weight: .semibold))
+                                if reminderLoading {
+                                    ProgressView().tint(Color.appOnPrimary).scaleEffect(0.8)
+                                }
                             }
                             .foregroundColor(Color.appOnPrimary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
-                            .background(Color.appPrimary)
+                            .background(reminderScheduled ? Color.appPrimary.opacity(0.7) : Color.appPrimary)
                             .cornerRadius(14)
                         }
 
@@ -194,7 +219,7 @@ struct SubscriptionDetailView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(settings.editLabel) { }
+                    Button(settings.editLabel) { showEdit = true }
                         .font(.system(size: 15))
                         .foregroundColor(Color.appPrimary)
                 }
@@ -202,12 +227,31 @@ struct SubscriptionDetailView: View {
         }
         .alert(settings.cancelSubLabel, isPresented: $showCancelAlert) {
             Button(settings.s("确认取消", "Confirm"), role: .destructive) {
+                NotificationManager.shared.cancelReminder(for: subscription.id)
                 store.markCancelled(subscription.id)
                 dismiss()
             }
             Button(settings.s("返回", "Cancel"), role: .cancel) { }
         } message: {
             Text(settings.s("此操作将把该订阅标记为已取消。", "This will mark the subscription as cancelled."))
+        }
+        .alert(settings.s("需要通知权限", "Notifications Required"), isPresented: $showPermissionAlert) {
+            Button(settings.s("去设置", "Open Settings")) {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button(settings.s("取消", "Cancel"), role: .cancel) { }
+        } message: {
+            Text(settings.s("请在系统设置中允许 SubTrack 发送通知。", "Please allow SubTrack to send notifications in System Settings."))
+        }
+        .task {
+            reminderScheduled = await NotificationManager.shared.isReminderScheduled(for: subscription.id)
+        }
+        .sheet(isPresented: $showEdit) {
+            AddSubscriptionView(editing: subscription)
+                .environment(store)
+                .environment(settings)
         }
     }
 }

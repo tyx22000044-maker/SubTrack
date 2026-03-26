@@ -37,13 +37,32 @@ struct AddSubscriptionView: View {
     @Environment(AppSettings.self) var settings
     @Environment(\.dismiss) var dismiss
 
-    @State private var currentStep = 0
-    @State private var serviceName = ""
-    @State private var amountText = ""
-    @State private var billingCycle: Subscription.BillingCycle = .monthly
-    @State private var nextBillingDate = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
-    @State private var category: Subscription.Category = .entertainment
-    @State private var currency: Subscription.Currency = .usd
+    // Stored properties for edit mode
+    private let editingId: UUID?
+    private let editingStartDate: Date
+
+    // State properties (initialized via custom init)
+    @State private var currentStep: Int
+    @State private var serviceName: String
+    @State private var amountText: String
+    @State private var billingCycle: Subscription.BillingCycle
+    @State private var nextBillingDate: Date
+    @State private var category: Subscription.Category
+    @State private var currency: Subscription.Currency
+
+    init(editing: Subscription? = nil) {
+        editingId = editing?.id
+        editingStartDate = editing?.startDate ?? Date()
+        _currentStep    = State(initialValue: editing != nil ? 2 : 0)
+        _serviceName    = State(initialValue: editing?.name ?? "")
+        _amountText     = State(initialValue: editing.map { String(format: "%.2f", $0.amount) } ?? "")
+        _billingCycle   = State(initialValue: editing?.billingCycle ?? .monthly)
+        _nextBillingDate = State(initialValue: editing?.nextBillingDate ?? (Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()))
+        _category       = State(initialValue: editing?.category ?? .entertainment)
+        _currency       = State(initialValue: editing?.currency ?? .usd)
+    }
+
+    var isEditing: Bool { editingId != nil }
 
     var stepLabels: [String] {
         [settings.stepLabels[0], settings.stepLabels[1], settings.stepLabels[2]]
@@ -68,37 +87,46 @@ struct AddSubscriptionView: View {
                             .clipShape(Circle())
                     }
                     Spacer()
-                    HStack(spacing: 5) {
-                        Image(systemName: "sparkles").font(.system(size: 11))
-                        Text(settings.s("AI 智能扫描", "AI Smart Scanner")).font(.system(size: 13, weight: .medium))
+                    if !isEditing {
+                        HStack(spacing: 5) {
+                            Image(systemName: "sparkles").font(.system(size: 11))
+                            Text(settings.s("AI 智能扫描", "AI Smart Scanner")).font(.system(size: 13, weight: .medium))
+                        }
+                        .foregroundColor(Color.appPrimary)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(Color.appPrimary.opacity(0.15))
+                        .cornerRadius(20)
+                    } else {
+                        Text(settings.s("编辑订阅", "Edit Subscription"))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(Color.appOnSurface)
                     }
-                    .foregroundColor(Color.appPrimary)
-                    .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(Color.appPrimary.opacity(0.15))
-                    .cornerRadius(20)
                     Spacer()
                     Button(action: {}) {
                         Image(systemName: "questionmark.circle")
                             .font(.system(size: 20))
-                            .foregroundColor(Color.appOnSurfaceVariant)
+                            .foregroundColor(isEditing ? Color.clear : Color.appOnSurfaceVariant)
                     }
+                    .disabled(isEditing)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
                 .padding(.bottom, 24)
 
                 // Title
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(settings.addSubTitle)
-                        .font(.system(size: 26, weight: .bold))
-                        .foregroundColor(Color.appOnSurface)
-                    Text(settings.aiSubtitle)
-                        .font(.system(size: 14))
-                        .foregroundColor(Color.appOnSurfaceVariant)
+                if !isEditing {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(settings.addSubTitle)
+                            .font(.system(size: 26, weight: .bold))
+                            .foregroundColor(Color.appOnSurface)
+                        Text(settings.aiSubtitle)
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.appOnSurfaceVariant)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 28)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 28)
 
                 // Step Content
                 Group {
@@ -117,6 +145,7 @@ struct AddSubscriptionView: View {
                             currency: $currency,
                             iconHex: iconHex,
                             iconSymbol: iconSymbol,
+                            isEditing: isEditing,
                             onSave: save
                         )
                     default:
@@ -126,9 +155,11 @@ struct AddSubscriptionView: View {
 
                 Spacer(minLength: 16)
 
-                StepIndicator(steps: stepLabels, current: currentStep)
-                    .padding(.horizontal, 40)
-                    .padding(.bottom, 36)
+                if !isEditing {
+                    StepIndicator(steps: stepLabels, current: currentStep)
+                        .padding(.horizontal, 40)
+                        .padding(.bottom, 36)
+                }
             }
         }
     }
@@ -138,7 +169,8 @@ struct AddSubscriptionView: View {
         guard let amount = Double(cleaned), amount > 0 else { return }
         let name = serviceName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
-        let sub = Subscription(
+
+        var sub = Subscription(
             name: name,
             amount: amount,
             billingCycle: billingCycle,
@@ -147,9 +179,17 @@ struct AddSubscriptionView: View {
             status: .active,
             iconHex: iconHex,
             iconSymbol: iconSymbol,
-            currency: currency
+            currency: currency,
+            startDate: editingStartDate
         )
-        store.add(sub)
+
+        if let id = editingId {
+            sub.id = id
+            store.update(sub)
+        } else {
+            sub.startDate = Date()
+            store.add(sub)
+        }
         dismiss()
     }
 }
@@ -290,11 +330,16 @@ struct ConfirmStepView: View {
     @Binding var currency: Subscription.Currency
     let iconHex: String
     let iconSymbol: String
+    var isEditing: Bool = false
     let onSave: () -> Void
 
     var canSave: Bool {
         !serviceName.trimmingCharacters(in: .whitespaces).isEmpty &&
         Double(amountText.replacingOccurrences(of: ",", with: ".")) != nil
+    }
+
+    var saveLabel: String {
+        isEditing ? settings.s("保存修改", "Save Changes") : settings.addButtonLabel
     }
 
     var body: some View {
@@ -376,7 +421,7 @@ struct ConfirmStepView: View {
                 .glassCard()
 
                 Button(action: onSave) {
-                    Text(settings.addButtonLabel)
+                    Text(saveLabel)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(canSave ? Color.appOnPrimary : Color.appOutline)
                         .frame(maxWidth: .infinity).padding(.vertical, 16)

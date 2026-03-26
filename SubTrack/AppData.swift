@@ -275,12 +275,20 @@ class SubscriptionStore {
     func add(_ subscription: Subscription) {
         subscriptions.insert(subscription, at: 0)
     }
+    func update(_ subscription: Subscription) {
+        if let idx = subscriptions.firstIndex(where: { $0.id == subscription.id }) {
+            subscriptions[idx] = subscription
+        }
+    }
+
     func markCancelled(_ id: UUID) {
         if let idx = subscriptions.firstIndex(where: { $0.id == id }) {
             subscriptions[idx].status = .cancelled
+            NotificationManager.shared.cancelReminder(for: id)
         }
     }
     func delete(_ id: UUID) {
+        NotificationManager.shared.cancelReminder(for: id)
         subscriptions.removeAll { $0.id == id }
     }
 }
