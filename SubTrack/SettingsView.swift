@@ -9,6 +9,8 @@ struct SettingsView: View {
     @State private var showClearAlert = false
     @State private var exportItems: [Any] = []
     @State private var showExportFormatPicker = false
+    @State private var showPrivacySheet = false
+    @State private var showFeedbackAlert = false
 
     /// Reads the actual byte size of the JSON data file on disk.
     private var realDataSize: String {
@@ -62,15 +64,6 @@ struct SettingsView: View {
                         .preferredColorScheme(settings.colorScheme)
                 }
 
-                // Account
-                SettingsGroup(title: settings.accountSection) {
-                    SettingItem(icon: "phone.fill",   color: Color.appPrimary,          title: settings.s("手机号码", "Phone Number"), value: "+86 138-0000-0000")
-                    SettingItem(icon: "apple.logo",   color: Color.appOnSurfaceVariant, title: "Apple ID",    value: "a.thompson@icloud.com")
-                    SettingItem(icon: "lock.fill",    color: Color.appTertiary,         title: "FaceTime",    value: settings.s("已启用", "Enabled"))
-                    SettingItem(icon: "message.fill", color: Color(hex: "25D366"),      title: "WhatsApp",    value: settings.s("已连接", "Connected"), isLast: true)
-                }
-                .padding(.horizontal, 20)
-
                 // Preferences
                 SettingsGroup(title: settings.prefsSection) {
                     AppearancePicker(
@@ -101,8 +94,20 @@ struct SettingsView: View {
 
                 // Data & Support
                 SettingsGroup(title: settings.dataSection) {
-                    SettingItem(icon: "hand.raised.fill",  color: Color.appOutline, title: settings.privacyLabel,  value: "")
-                    SettingItem(icon: "bubble.left.fill",  color: Color.appOutline, title: settings.feedbackLabel, value: "")
+                    SettingItem(icon: "hand.raised.fill", color: Color.appPrimary,
+                                title: settings.privacyLabel, value: "",
+                                action: { showPrivacySheet = true })
+                    SettingItem(icon: "bubble.left.fill", color: Color.appTertiary,
+                                title: settings.feedbackLabel, value: "",
+                                action: {
+                                    let email = "feedback@subtrack.app"
+                                    if let url = URL(string: "mailto:\(email)"),
+                                       UIApplication.shared.canOpenURL(url) {
+                                        UIApplication.shared.open(url)
+                                    } else {
+                                        showFeedbackAlert = true
+                                    }
+                                })
 
                     // Clear Cache
                     Button(action: { showClearAlert = true }) {
@@ -181,6 +186,20 @@ struct SettingsView: View {
         } message: {
             Text(settings.s("这将删除所有订阅数据，此操作不可撤销。", "This will delete all subscription data. This action cannot be undone."))
         }
+        // Feedback fallback alert (no mail client)
+        .alert(settings.s("发送反馈", "Send Feedback"), isPresented: $showFeedbackAlert) {
+            Button(settings.s("复制邮箱", "Copy Email")) {
+                UIPasteboard.general.string = "feedback@subtrack.app"
+            }
+            Button(settings.s("取消", "Cancel"), role: .cancel) { }
+        } message: {
+            Text("feedback@subtrack.app")
+        }
+        // Privacy Policy sheet
+        .sheet(isPresented: $showPrivacySheet) {
+            PrivacyPolicyView()
+                .environment(settings)
+        }
     }
 }
 
@@ -222,8 +241,20 @@ struct SettingItem: View {
     let title: String
     let value: String
     var isLast: Bool = false
+    var action: (() -> Void)? = nil
 
     var body: some View {
+        Group {
+            if let action {
+                Button(action: action) { row }
+                    .buttonStyle(.plain)
+            } else {
+                row
+            }
+        }
+    }
+
+    private var row: some View {
         HStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8).fill(color.opacity(0.2)).frame(width: 34, height: 34)
@@ -412,6 +443,177 @@ struct EditProfileView: View {
                 name = settings.userName
                 avatarData = settings.userAvatarData
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { focused = true }
+            }
+        }
+    }
+}
+
+// MARK: - Privacy Policy View
+struct PrivacyPolicyView: View {
+    @Environment(AppSettings.self) var settings
+    @Environment(\.dismiss) var dismiss
+
+    private struct PolicySection {
+        let icon: String
+        let title: String
+        let body: String
+    }
+
+    private var sections: [PolicySection] {
+        settings.language == 0 ? cnSections : enSections
+    }
+
+    private let cnSections: [PolicySection] = [
+        PolicySection(
+            icon: "lock.shield.fill",
+            title: "数据存储",
+            body: "SubTrack 的所有数据均存储在您的设备本地，不会上传至任何服务器。我们无法访问您的订阅信息。"
+        ),
+        PolicySection(
+            icon: "eye.slash.fill",
+            title: "隐私保护",
+            body: "我们不收集任何个人身份信息、使用习惯或设备数据。您的隐私完全由您掌控。"
+        ),
+        PolicySection(
+            icon: "bell.fill",
+            title: "通知权限",
+            body: "仅在您主动设置提醒时，应用才会申请通知权限。推送内容仅包含您设置的订阅提醒，不包含广告。"
+        ),
+        PolicySection(
+            icon: "photo.fill",
+            title: "相册权限",
+            body: "仅在您上传头像时，应用才会访问相册。图片数据保存在本地，不会外传。"
+        ),
+        PolicySection(
+            icon: "trash.fill",
+            title: "数据删除",
+            body: "您可以随时在设置页面清除所有数据，也可以直接卸载应用来彻底删除全部内容。"
+        ),
+        PolicySection(
+            icon: "envelope.fill",
+            title: "联系我们",
+            body: "如有任何疑问，请发送邮件至 feedback@subtrack.app，我们会在 3 个工作日内回复。"
+        ),
+    ]
+
+    private let enSections: [PolicySection] = [
+        PolicySection(
+            icon: "lock.shield.fill",
+            title: "Data Storage",
+            body: "All SubTrack data is stored locally on your device and never uploaded to any server. We have no access to your subscription information."
+        ),
+        PolicySection(
+            icon: "eye.slash.fill",
+            title: "Privacy Protection",
+            body: "We collect no personal information, usage data, or device identifiers. Your privacy is entirely in your control."
+        ),
+        PolicySection(
+            icon: "bell.fill",
+            title: "Notifications",
+            body: "The app only requests notification permission when you actively set a reminder. Push notifications contain only your subscription reminders — no ads."
+        ),
+        PolicySection(
+            icon: "photo.fill",
+            title: "Photo Library",
+            body: "The app accesses your photo library only when you upload a profile avatar. Images are stored locally and never shared."
+        ),
+        PolicySection(
+            icon: "trash.fill",
+            title: "Data Deletion",
+            body: "You can clear all data at any time from the Settings page, or uninstall the app to permanently remove everything."
+        ),
+        PolicySection(
+            icon: "envelope.fill",
+            title: "Contact Us",
+            body: "For any questions, email us at feedback@subtrack.app. We respond within 3 business days."
+        ),
+    ]
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        // Header blurb
+                        HStack(spacing: 14) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(Color.appPrimary.opacity(0.15))
+                                    .frame(width: 52, height: 52)
+                                Image(systemName: "hand.raised.fill")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(Color.appPrimary)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(settings.s("SubTrack 隐私政策", "SubTrack Privacy Policy"))
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(Color.appOnSurface)
+                                Text(settings.s("最后更新：2026年3月", "Last updated: March 2026"))
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.appOnSurfaceVariant)
+                            }
+                        }
+                        .padding(16)
+                        .glassCard()
+
+                        // Policy sections
+                        VStack(spacing: 0) {
+                            ForEach(Array(sections.enumerated()), id: \.offset) { idx, section in
+                                HStack(alignment: .top, spacing: 14) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color.appPrimary.opacity(0.12))
+                                            .frame(width: 32, height: 32)
+                                        Image(systemName: section.icon)
+                                            .font(.system(size: 13))
+                                            .foregroundColor(Color.appPrimary)
+                                    }
+                                    .padding(.top, 1)
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        Text(section.title)
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundColor(Color.appOnSurface)
+                                        Text(section.body)
+                                            .font(.system(size: 13))
+                                            .foregroundColor(Color.appOnSurfaceVariant)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                            .lineSpacing(3)
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                                .overlay(alignment: .bottom) {
+                                    if idx < sections.count - 1 {
+                                        Rectangle()
+                                            .fill(Color.appOutlineVariant.opacity(0.4))
+                                            .frame(height: 0.5)
+                                            .padding(.leading, 62)
+                                    }
+                                }
+                            }
+                        }
+                        .glassCard()
+
+                        Text(settings.s("SubTrack Pro v1.0 · © 2026 · 保留所有权利",
+                                        "SubTrack Pro v1.0 · © 2026 · All rights reserved"))
+                            .font(.system(size: 11))
+                            .foregroundColor(Color.appOutline)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.bottom, 40)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                }
+            }
+            .scrollIndicators(.hidden)
+            .navigationTitle(settings.s("隐私政策", "Privacy Policy"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(settings.s("关闭", "Close")) { dismiss() }
+                        .foregroundColor(Color.appPrimary)
+                }
             }
         }
     }

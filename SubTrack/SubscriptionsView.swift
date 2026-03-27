@@ -150,11 +150,13 @@ struct SubscriptionsView: View {
                         .padding(.top, 60)
                     } else {
                         ForEach(filtered) { sub in
-                            Button { selectedSub = sub } label: {
+                            SwipeableRow(
+                                onTap: { selectedSub = sub },
+                                onDelete: { store.delete(sub.id) }
+                            ) {
                                 SubscriptionListRow(subscription: sub, settings: settings)
                                     .padding(.horizontal, 20)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -267,6 +269,96 @@ struct SubscriptionsEmptyState: View {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1)) {
                 appeared = true
             }
+        }
+    }
+}
+
+// MARK: - Swipe-to-delete row wrapper
+struct SwipeableRow<Content: View>: View {
+    let content: Content
+    let onTap: () -> Void
+    let onDelete: () -> Void
+
+    @State private var offset: CGFloat = 0
+    @State private var isRevealed = false
+    private let deleteWidth: CGFloat = 82
+
+    init(onTap: @escaping () -> Void,
+         onDelete: @escaping () -> Void,
+         @ViewBuilder content: () -> Content) {
+        self.onTap = onTap
+        self.onDelete = onDelete
+        self.content = content()
+    }
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            // ── Delete button (behind the card) ──────────────────────
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    offset = 0
+                    isRevealed = false
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { onDelete() }
+            } label: {
+                VStack(spacing: 5) {
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text("删除")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .frame(width: deleteWidth - 12)
+                .frame(maxHeight: .infinity)
+                .background(Color.appSecondary)
+                .cornerRadius(14)
+            }
+            .padding(.trailing, 20)
+            .opacity(offset < -8 ? 1 : 0)
+
+            // ── Card (slides left on swipe) ──────────────────────────
+            content
+                .offset(x: offset)
+                .onTapGesture {
+                    if isRevealed { close() } else { onTap() }
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 18, coordinateSpace: .local)
+                        .onChanged { value in
+                            let dx = value.translation.width
+                            if dx < 0 {
+                                // Swipe left: allow up to deleteWidth + small overscroll
+                                offset = max(dx, isRevealed ? -(deleteWidth * 1.1) : -deleteWidth)
+                            } else if isRevealed {
+                                // Swipe right to close while already open
+                                offset = min(-deleteWidth + dx, 0)
+                            }
+                        }
+                        .onEnded { value in
+                            let dx = value.translation.width
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                if !isRevealed && dx < -(deleteWidth * 0.35) {
+                                    offset = -deleteWidth
+                                    isRevealed = true
+                                } else if isRevealed && dx > deleteWidth * 0.35 {
+                                    close()
+                                } else if isRevealed {
+                                    offset = -deleteWidth
+                                } else {
+                                    offset = 0
+                                }
+                            }
+                        }
+                )
+        }
+        .clipped()
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: offset)
+    }
+
+    private func close() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            offset = 0
+            isRevealed = false
         }
     }
 }
