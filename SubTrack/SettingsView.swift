@@ -10,6 +10,19 @@ struct SettingsView: View {
     @State private var exportItems: [Any] = []
     @State private var showExportFormatPicker = false
 
+    /// Reads the actual byte size of the JSON data file on disk.
+    private var realDataSize: String {
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("subtrack_subscriptions.json")
+        let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+        switch bytes {
+        case 0:              return "0 B"
+        case ..<1024:        return "\(bytes) B"
+        case ..<(1024*1024): return String(format: "%.1f KB", Double(bytes) / 1024)
+        default:             return String(format: "%.2f MB", Double(bytes) / 1_048_576)
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -100,7 +113,7 @@ struct SettingsView: View {
                             }
                             Text(settings.clearCacheLabel).font(.system(size: 15)).foregroundColor(Color.appOnSurface)
                             Spacer()
-                            Text(String(format: "%.1f MB", Double(store.subscriptions.count) * 0.8 + 12.4))
+                            Text(realDataSize)
                                 .font(.system(size: 14)).foregroundColor(Color.appOnSurfaceVariant)
                             Image(systemName: "chevron.right").font(.system(size: 12)).foregroundColor(Color.appOutline)
                         }
