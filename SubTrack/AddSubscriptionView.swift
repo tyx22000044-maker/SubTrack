@@ -279,42 +279,211 @@ struct SupportedTypeRow: View {
     }
 }
 
-// MARK: - Step 1: AI Scan
+// MARK: - Step 1: AI Scan Preview
 struct ScanStepView: View {
     @Environment(AppSettings.self) var settings
     let onNext: () -> Void
+    @State private var pulse = false
 
     var body: some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(Color.appPrimary.opacity(0.15)).frame(width: 56, height: 56)
-                    Image(systemName: "camera.fill").font(.system(size: 24)).foregroundColor(Color.appPrimary)
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 20) {
+
+                // ── Version badge ────────────────────────────────────
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles").font(.system(size: 11))
+                    Text(settings.s("功能预告 · V1.0 上线", "Coming in V1.0"))
+                        .font(.system(size: 12, weight: .semibold))
                 }
-                Text(settings.s("拍照或上传截图", "Take or upload screenshot"))
-                    .font(.system(size: 17, weight: .semibold)).foregroundColor(Color.appOnSurface)
-                Text(settings.s("支持 App Store / 邮件 / 银行账单", "Supports App Store / Email / Bank statements"))
-                    .font(.system(size: 13)).foregroundColor(Color.appOnSurfaceVariant).multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity).padding(.vertical, 36)
-            .background(RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color.appOutlineVariant, style: StrokeStyle(lineWidth: 1, dash: [6])))
-            .padding(.horizontal, 20)
+                .foregroundColor(Color.appPrimary)
+                .padding(.horizontal, 14).padding(.vertical, 6)
+                .background(Color.appPrimary.opacity(0.12))
+                .cornerRadius(20)
 
-            HStack(spacing: 8) {
-                Image(systemName: "sparkles").foregroundColor(Color.appPrimary)
-                Text(settings.s("AI 扫描功能即将上线", "AI scanning coming in next update"))
-                    .font(.system(size: 13)).foregroundColor(Color.appOnSurfaceVariant)
-            }
-            .padding(14).background(Color.appSurfaceContainer).cornerRadius(12).padding(.horizontal, 20)
+                // ── Hero ─────────────────────────────────────────────
+                VStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.appPrimary.opacity(0.08))
+                            .frame(width: 88, height: 88)
+                            .scaleEffect(pulse ? 1.18 : 1.0)
+                            .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: pulse)
+                        Circle()
+                            .fill(Color.appPrimary.opacity(0.14))
+                            .frame(width: 68, height: 68)
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 28))
+                            .foregroundColor(Color.appPrimary)
+                    }
+                    .onAppear { pulse = true }
 
-            Button(action: onNext) {
-                Text(settings.s("手动填写详情 →", "Enter Details Manually →"))
-                    .font(.system(size: 15, weight: .semibold)).foregroundColor(Color.appOnPrimary)
-                    .frame(maxWidth: .infinity).padding(.vertical, 16)
-                    .background(Color.appPrimary).cornerRadius(14)
+                    Text(settings.s("AI 智能扫描", "AI Smart Scanner"))
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(Color.appOnSurface)
+
+                    Text(settings.s(
+                        "拍一张账单截图，AI 自动识别\n服务名称、金额、周期——无需手动输入",
+                        "Snap a receipt screenshot — AI auto-fills\nservice name, amount, and billing cycle"
+                    ))
+                    .font(.system(size: 14))
+                    .foregroundColor(Color.appOnSurfaceVariant)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(Color.appPrimary.opacity(0.3),
+                                      style: StrokeStyle(lineWidth: 1.5, dash: [6]))
+                )
+                .padding(.horizontal, 20)
+
+                // ── Source types with accuracy ───────────────────────
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(settings.s("支持三种来源", "3 SUPPORTED SOURCES"))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color.appOutline)
+                        .tracking(0.8)
+                        .padding(.leading, 4)
+
+                    VStack(spacing: 0) {
+                        ScanSourceRow(
+                            icon: "bag.fill",
+                            color: Color.appPrimary,
+                            title: settings.s("App Store 订单", "App Store Order"),
+                            accuracy: settings.s("准确率 ≥ 95%", "≥95% accuracy"),
+                            isLast: false
+                        )
+                        ScanSourceRow(
+                            icon: "envelope.fill",
+                            color: Color.appTertiary,
+                            title: settings.s("邮件收据", "Email Receipt"),
+                            accuracy: settings.s("准确率 ≥ 85%", "≥85% accuracy"),
+                            isLast: false
+                        )
+                        ScanSourceRow(
+                            icon: "building.columns.fill",
+                            color: Color(hex: "1DB954"),
+                            title: settings.s("银行账单", "Bank Statement"),
+                            accuracy: settings.s("准确率 ≥ 70%", "≥70% accuracy"),
+                            isLast: true
+                        )
+                    }
+                    .glassCard()
+                }
+                .padding(.horizontal, 20)
+
+                // ── Confidence scoring preview ───────────────────────
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text(settings.s("置信度系统", "Confidence Scoring"))
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color.appOnSurface)
+                        Spacer()
+                        Text(settings.s("低置信度字段自动高亮", "Low-confidence fields highlighted"))
+                            .font(.system(size: 11))
+                            .foregroundColor(Color.appOutline)
+                            .multilineTextAlignment(.trailing)
+                    }
+
+                    VStack(spacing: 10) {
+                        ConfidenceRow(field: settings.s("服务名称", "Service"),  pct: 0.98, high: true)
+                        ConfidenceRow(field: settings.s("扣费金额", "Amount"),   pct: 0.95, high: true)
+                        ConfidenceRow(field: settings.s("账单周期", "Cycle"),    pct: 0.87, high: false)
+                        ConfidenceRow(field: settings.s("下次扣款", "Next date"), pct: 0.72, high: false)
+                    }
+                }
+                .padding(16)
+                .glassCard()
+                .padding(.horizontal, 20)
+
+                // ── CTA ──────────────────────────────────────────────
+                Button(action: onNext) {
+                    HStack(spacing: 8) {
+                        Text(settings.s("已了解，手动填写详情", "Got it — Enter Details Manually"))
+                            .font(.system(size: 15, weight: .semibold))
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundColor(Color.appOnPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(Color.appPrimary)
+                    .cornerRadius(14)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal, 20)
+            .padding(.vertical, 4)
+        }
+    }
+}
+
+// Source row with accuracy label
+private struct ScanSourceRow: View {
+    let icon: String
+    let color: Color
+    let title: String
+    let accuracy: String
+    let isLast: Bool
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8).fill(color.opacity(0.18)).frame(width: 34, height: 34)
+                Image(systemName: icon).font(.system(size: 15)).foregroundColor(color)
+            }
+            Text(title).font(.system(size: 15)).foregroundColor(Color.appOnSurface)
+            Spacer()
+            Text(accuracy)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(Color.appOnSurfaceVariant)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .overlay(alignment: .bottom) {
+            if !isLast {
+                Rectangle().fill(Color.appOutlineVariant.opacity(0.5))
+                    .frame(height: 0.5).padding(.leading, 62)
+            }
+        }
+    }
+}
+
+// Confidence bar row
+private struct ConfidenceRow: View {
+    let field: String
+    let pct: Double   // 0.0 – 1.0
+    let high: Bool    // true = green/primary, false = orange warning
+
+    var barColor: Color { high ? Color.appPrimary : .orange }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(field)
+                .font(.system(size: 13))
+                .foregroundColor(Color.appOnSurface)
+                .frame(width: 68, alignment: .leading)
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.appSurfaceHigh).frame(height: 6)
+                    Capsule().fill(barColor.opacity(0.75))
+                        .frame(width: g.size.width * pct, height: 6)
+                        .animation(.easeOut(duration: 0.8), value: pct)
+                }
+            }
+            .frame(height: 6)
+            HStack(spacing: 3) {
+                if !high {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 9))
+                        .foregroundColor(.orange)
+                }
+                Text("\(Int(pct * 100))%")
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundColor(barColor)
+            }
+            .frame(width: 44, alignment: .trailing)
         }
     }
 }

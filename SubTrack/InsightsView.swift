@@ -122,13 +122,9 @@ struct InsightsView: View {
                 .glassCard()
                 .padding(.horizontal, 20)
 
-                // AI Suggestions — Coming Soon
-                ComingSoonCard(
-                    icon: "sparkles",
-                    title: settings.aiSugLabel,
-                    message: settings.s("AI 智能分析即将上线，帮你找到重复订阅、推荐最优方案。", "AI-powered analysis is coming soon — find duplicates and optimize your spending.")
-                )
-                .padding(.horizontal, 20)
+                // AI Suggestions — Strategic Preview
+                AIInsightsPreview()
+                    .padding(.horizontal, 20)
 
                 Spacer().frame(height: 90)
             }
@@ -282,7 +278,7 @@ struct CategoryBarRow: View {
     }
 }
 
-// MARK: - AI Suggestion Card
+// MARK: - AI Suggestion Card (reusable, used elsewhere)
 struct AISuggestion: View {
     let icon: String
     let title: String
@@ -303,5 +299,164 @@ struct AISuggestion: View {
         .padding(14)
         .background(Color.appSurfaceContainer)
         .cornerRadius(12)
+    }
+}
+
+// MARK: - AI Insights Preview (strategic coming-soon module)
+struct AIInsightsPreview: View {
+    @Environment(AppSettings.self) var settings
+
+    var body: some View {
+        VStack(spacing: 0) {
+
+            // ── Header ──────────────────────────────────────────────
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle().fill(Color.appPrimary.opacity(0.14)).frame(width: 40, height: 40)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 17))
+                        .foregroundColor(Color.appPrimary)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(settings.s("AI 省钱建议", "AI Savings Suggestions"))
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(Color.appOnSurface)
+                    Text(settings.s("智能分析你的订阅组合", "Analyzes your subscription portfolio"))
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.appOnSurfaceVariant)
+                }
+                Spacer()
+                Text("V 1.0")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(Color.appPrimary)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(Color.appPrimary.opacity(0.12))
+                    .cornerRadius(20)
+            }
+            .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 14)
+
+            Rectangle()
+                .fill(Color.appOutlineVariant.opacity(0.5))
+                .frame(height: 0.5)
+
+            // ── Mock suggestion cards (blurred) ──────────────────────
+            VStack(spacing: 10) {
+                // Type A: Duplicate detection
+                MockSuggestionCard(
+                    icon: "exclamationmark.2",
+                    accent: .orange,
+                    badge: settings.s("重复订阅", "Duplicate Found"),
+                    title: settings.s("发现重叠订阅", "Found Duplicate"),
+                    message: settings.s(
+                        "Apple Music (¥11) 与 Apple One (¥68) 功能重叠，取消前者每月可省 ¥11。",
+                        "Apple Music (¥11) overlaps with Apple One (¥68). Cancel it to save ¥11/mo."
+                    )
+                )
+                // Type B: Switch to annual
+                MockSuggestionCard(
+                    icon: "calendar.badge.checkmark",
+                    accent: Color.appPrimary,
+                    badge: settings.s("切换年付", "Switch to Annual"),
+                    title: settings.s("建议切换年付", "Switch to Annual"),
+                    message: settings.s(
+                        "切换 Netflix 为年付预计每年省 ¥18，你已连续订阅 8 个月。",
+                        "Switching Netflix to annual billing saves an estimated ¥18/year. You've subscribed 8 months."
+                    )
+                )
+            }
+            .blur(radius: 5)
+            .overlay(
+                VStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.appSurfaceContainer.opacity(0.92))
+                            .frame(width: 52, height: 52)
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 20))
+                            .foregroundColor(Color.appPrimary)
+                    }
+                    Text(settings.s("AI 分析即将上线", "AI Analysis Coming Soon"))
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color.appOnSurface)
+                    Text(settings.s("上线后自动扫描你的订阅组合", "Will auto-scan your subscription portfolio"))
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.appOnSurfaceVariant)
+                }
+            )
+            .padding(.horizontal, 14).padding(.top, 14)
+
+            Rectangle()
+                .fill(Color.appOutlineVariant.opacity(0.5))
+                .frame(height: 0.5)
+                .padding(.top, 14)
+
+            // ── Two feature pills ────────────────────────────────────
+            HStack(spacing: 12) {
+                AIFeaturePill(
+                    icon: "doc.text.magnifyingglass",
+                    text: settings.s("重复订阅检测", "Duplicate Detection")
+                )
+                AIFeaturePill(
+                    icon: "arrow.2.circlepath",
+                    text: settings.s("年付省钱建议", "Annual Switch Tips")
+                )
+            }
+            .padding(.horizontal, 16).padding(.vertical, 14)
+        }
+        .glassCard()
+    }
+}
+
+private struct MockSuggestionCard: View {
+    let icon: String
+    let accent: Color
+    let badge: String
+    let title: String
+    let message: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ZStack {
+                Circle().fill(accent.opacity(0.18)).frame(width: 38, height: 38)
+                Image(systemName: icon).font(.system(size: 15)).foregroundColor(accent)
+            }
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Text(badge)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(accent)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(accent.opacity(0.12))
+                        .cornerRadius(20)
+                }
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color.appOnSurface)
+                Text(message)
+                    .font(.system(size: 12))
+                    .foregroundColor(Color.appOnSurfaceVariant)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(2)
+            }
+        }
+        .padding(14)
+        .background(Color.appSurfaceContainer)
+        .cornerRadius(12)
+    }
+}
+
+private struct AIFeaturePill: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).font(.system(size: 11)).foregroundColor(Color.appPrimary)
+            Text(text).font(.system(size: 12, weight: .medium)).foregroundColor(Color.appOnSurface)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(Color.appPrimary.opacity(0.08))
+        .cornerRadius(10)
     }
 }

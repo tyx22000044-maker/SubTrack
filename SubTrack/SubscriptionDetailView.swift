@@ -164,14 +164,10 @@ struct SubscriptionDetailView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
 
-                    // Community Rating — Coming Soon
-                    ComingSoonCard(
-                        icon: "person.2.fill",
-                        title: settings.communityRatingLabel,
-                        message: settings.s("社区评分与讨论功能即将上线。", "Community ratings and reviews are coming soon.")
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 24)
+                    // Community Rating — Strategic Preview
+                    CommunityRatingPreview()
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 24)
 
                     // Action Buttons
                     VStack(spacing: 12) {
@@ -651,5 +647,180 @@ private struct ReceiptEdge: Shape {
         path.addLine(to: CGPoint(x: w, y: pointsUp ? h : 0))
         path.closeSubpath()
         return path
+    }
+}
+
+// MARK: - Community Rating Preview
+struct CommunityRatingPreview: View {
+    @Environment(AppSettings.self) var settings
+    @State private var notifyRegistered = false
+
+    // Mock distribution for visual preview (blurred)
+    private let barWeights: [Double] = [0.44, 0.29, 0.15, 0.07, 0.05]
+
+    var body: some View {
+        VStack(spacing: 0) {
+
+            // ── Header ──────────────────────────────────────────────
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle().fill(Color.appTertiary.opacity(0.15)).frame(width: 40, height: 40)
+                    Image(systemName: "person.2.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(Color.appTertiary)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(settings.s("社区评分", "Community Ratings"))
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(Color.appOnSurface)
+                    Text(settings.s("SubTrack 用户真实反馈", "Real feedback from SubTrack users"))
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.appOnSurfaceVariant)
+                }
+                Spacer()
+                Text("V 1.5")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(Color.appTertiary)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(Color.appTertiary.opacity(0.14))
+                    .cornerRadius(20)
+            }
+            .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 14)
+
+            Rectangle()
+                .fill(Color.appOutlineVariant.opacity(0.5))
+                .frame(height: 0.5)
+
+            // ── Blurred mock rating UI ───────────────────────────────
+            ZStack {
+                // Blurred content underneath
+                HStack(alignment: .top, spacing: 16) {
+                    // Score + stars
+                    VStack(spacing: 6) {
+                        Text("4.2")
+                            .font(.system(size: 38, weight: .bold))
+                            .foregroundColor(Color.appOnSurface)
+                        HStack(spacing: 3) {
+                            ForEach(0..<5, id: \.self) { i in
+                                Image(systemName: i < 4 ? "star.fill" : "star.leadinghalf.filled")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.yellow)
+                            }
+                        }
+                        Text("12,847")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color.appOnSurfaceVariant)
+                    }
+                    .frame(width: 72)
+
+                    // Rating bars
+                    VStack(spacing: 5) {
+                        ForEach(barWeights.indices, id: \.self) { i in
+                            HStack(spacing: 6) {
+                                Text("\(5 - i)")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(Color.appOutline)
+                                    .frame(width: 8)
+                                GeometryReader { g in
+                                    ZStack(alignment: .leading) {
+                                        Capsule().fill(Color.appSurfaceHigh).frame(height: 6)
+                                        Capsule()
+                                            .fill(Color.yellow.opacity(0.65))
+                                            .frame(width: g.size.width * barWeights[i], height: 6)
+                                    }
+                                }
+                                .frame(height: 6)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal, 16).padding(.vertical, 18)
+                .blur(radius: 6)
+
+                // Lock overlay
+                VStack(spacing: 8) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.appSurfaceContainer.opacity(0.9))
+                            .frame(width: 48, height: 48)
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(Color.appOnSurfaceVariant)
+                    }
+                    Text(settings.s("上线后解锁", "Unlocks when live"))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Color.appOnSurfaceVariant)
+                }
+            }
+
+            Rectangle()
+                .fill(Color.appOutlineVariant.opacity(0.5))
+                .frame(height: 0.5)
+
+            // ── Value proposition ────────────────────────────────────
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 20) {
+                    CRFeaturePill(icon: "star.fill",    text: settings.s("真实评分", "Real Ratings"),   color: .yellow)
+                    CRFeaturePill(icon: "tag.fill",     text: settings.s("用户标签", "User Tags"),      color: Color.appTertiary)
+                    CRFeaturePill(icon: "chart.line.downtrend.xyaxis", text: settings.s("取消原因", "Cancel Reasons"), color: Color.appSecondary)
+                }
+
+                Text(settings.s(
+                    "上线后，数千名 SubTrack 用户将分享真实的订阅体验——帮你在续费前做出更明智的决策。",
+                    "When live, thousands of SubTrack users will share real subscription experiences — helping you decide before you renew."
+                ))
+                .font(.system(size: 13))
+                .foregroundColor(Color.appOnSurfaceVariant)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 16).padding(.top, 14)
+
+            // ── Notify button ────────────────────────────────────────
+            Button {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.65)) {
+                    notifyRegistered = true
+                }
+                UserDefaults.standard.set(true, forKey: "st_community_notify_interest")
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: notifyRegistered ? "checkmark.circle.fill" : "bell.badge")
+                        .font(.system(size: 15))
+                    Text(notifyRegistered
+                         ? settings.s("已登记，上线时通知你 ✓", "You'll be notified when live ✓")
+                         : settings.s("上线时通知我", "Notify me when available"))
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .foregroundColor(notifyRegistered ? Color.appOnPrimary : Color.appTertiary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(notifyRegistered ? Color.appTertiary : Color.appTertiary.opacity(0.12))
+                .cornerRadius(10)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 16)
+        }
+        .glassCard()
+        .onAppear {
+            notifyRegistered = UserDefaults.standard.bool(forKey: "st_community_notify_interest")
+        }
+    }
+}
+
+private struct CRFeaturePill: View {
+    let icon: String
+    let text: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon).font(.system(size: 10)).foregroundColor(color)
+            Text(text).font(.system(size: 11, weight: .medium)).foregroundColor(Color.appOnSurface)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 5)
+        .background(color.opacity(0.1))
+        .cornerRadius(20)
     }
 }
