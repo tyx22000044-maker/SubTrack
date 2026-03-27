@@ -4,7 +4,17 @@ struct DashboardView: View {
     @Environment(SubscriptionStore.self) var store
     @Environment(AppSettings.self) var settings
     @State private var selectedSub: Subscription? = nil
+    @State private var showSearch = false
+    @State private var searchText = ""
     var onSeeAll: (() -> Void)? = nil
+
+    // Search results across all subscriptions
+    var searchResults: [Subscription] {
+        guard !searchText.isEmpty else { return [] }
+        return store.subscriptions.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText)
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -15,8 +25,13 @@ struct DashboardView: View {
                         .font(.system(size: 28, weight: .bold))
                         .foregroundColor(Color.appOnSurface)
                     Spacer()
-                    Button { } label: {
-                        Image(systemName: "magnifyingglass")
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showSearch.toggle()
+                            if !showSearch { searchText = "" }
+                        }
+                    } label: {
+                        Image(systemName: showSearch ? "xmark" : "magnifyingglass")
                             .font(.system(size: 20, weight: .medium))
                             .foregroundColor(Color.appOnSurface)
                     }
@@ -24,58 +39,114 @@ struct DashboardView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
 
-                // Spending Card
-                SpendingCard(store: store, settings: settings)
-                    .padding(.horizontal, 20)
-
-                // Empty State
-                if store.subscriptions.isEmpty {
-                    DashboardEmptyState()
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
-                }
-
-                // Priority Renewals
-                if !store.upcomingRenewals.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(settings.priorityRenewalsLabel)
-                            .font(.system(size: 18, weight: .semibold))
+                // Search Bar
+                if showSearch {
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 15))
+                            .foregroundColor(Color.appOutline)
+                        TextField(settings.s("搜索订阅...", "Search subscriptions..."), text: $searchText)
+                            .font(.system(size: 15))
                             .foregroundColor(Color.appOnSurface)
-                            .padding(.horizontal, 20)
-
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(store.upcomingRenewals) { sub in
-                                    Button { selectedSub = sub } label: {
-                                        RenewalCard(subscription: sub, settings: settings)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
+                        if !searchText.isEmpty {
+                            Button { searchText = "" } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(Color.appOutline)
                             }
-                            .padding(.horizontal, 20)
                         }
                     }
+                    .padding(.horizontal, 14).padding(.vertical, 11)
+                    .background(Color.appSurfaceContainer)
+                    .cornerRadius(12)
+                    .padding(.horizontal, 20)
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
-                // Monthly Subscriptions
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text(settings.monthlySubsLabel)
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(Color.appOnSurface)
-                        Spacer()
-                        Button(settings.seeAllLabel) { onSeeAll?() }
-                            .font(.system(size: 14))
-                            .foregroundColor(Color.appPrimary)
-                    }
-                    .padding(.horizontal, 20)
-
-                    ForEach(Array(store.subscriptions.filter { $0.status == .active }.prefix(3))) { sub in
-                        Button { selectedSub = sub } label: {
-                            SubscriptionRowCard(subscription: sub, settings: settings)
-                                .padding(.horizontal, 20)
+                // ── Search results mode ──────────────────────────────────
+                if showSearch && !searchText.isEmpty {
+                    if searchResults.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 36))
+                                .foregroundColor(Color.appOutline)
+                            Text(settings.s("未找到 \(searchText)", "No results for \(searchText)"))
+                                .font(.system(size: 15))
+                                .foregroundColor(Color.appOnSurfaceVariant)
                         }
-                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 40)
+                    } else {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(settings.s("搜索结果", "Search Results"))
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color.appOnSurfaceVariant)
+                                .padding(.horizontal, 20)
+                            ForEach(searchResults) { sub in
+                                Button { selectedSub = sub } label: {
+                                    SubscriptionRowCard(subscription: sub, settings: settings)
+                                        .padding(.horizontal, 20)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+
+                // ── Normal mode ──────────────────────────────────────────
+                } else {
+                    // Spending Card
+                    SpendingCard(store: store, settings: settings)
+                        .padding(.horizontal, 20)
+
+                    // Empty State
+                    if store.subscriptions.isEmpty {
+                        DashboardEmptyState()
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+                    }
+
+                    // Priority Renewals
+                    if !store.upcomingRenewals.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(settings.priorityRenewalsLabel)
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(Color.appOnSurface)
+                                .padding(.horizontal, 20)
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(store.upcomingRenewals) { sub in
+                                        Button { selectedSub = sub } label: {
+                                            RenewalCard(subscription: sub, settings: settings)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                            }
+                        }
+                    }
+
+                    // Monthly Subscriptions
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text(settings.monthlySubsLabel)
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(Color.appOnSurface)
+                            Spacer()
+                            Button(settings.seeAllLabel) { onSeeAll?() }
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.appPrimary)
+                        }
+                        .padding(.horizontal, 20)
+
+                        ForEach(Array(store.subscriptions.filter { $0.status == .active }.prefix(3))) { sub in
+                            Button { selectedSub = sub } label: {
+                                SubscriptionRowCard(subscription: sub, settings: settings)
+                                    .padding(.horizontal, 20)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
 
@@ -106,6 +177,30 @@ struct SpendingCard: View {
             : settings.s("含汇率换算 $1/¥7.25", "Rate: $1 / ¥7.25")
     }
 
+    // Real last-month total: subs that were already active last month
+    private var lastMonthTotal: Double {
+        let cal = Calendar.current
+        let now = Date()
+        guard let lastMonthDate  = cal.date(byAdding: .month, value: -1, to: now),
+              let startOfLast    = cal.date(from: cal.dateComponents([.year, .month], from: lastMonthDate)),
+              let startOfThis    = cal.date(byAdding: .month, value: 1, to: startOfLast),
+              let endOfLast      = cal.date(byAdding: .second, value: -1, to: startOfThis) else {
+            return displayTotal
+        }
+        return store.subscriptions
+            .filter { $0.status == .active && $0.startDate <= endOfLast }
+            .reduce(0.0) { acc, sub in
+                isCNY
+                    ? acc + (sub.currency == .cny ? sub.monthlyAmount : sub.monthlyAmount * SubscriptionStore.usdToCnyRate)
+                    : acc + (sub.currency == .usd ? sub.monthlyAmount : sub.monthlyAmount / SubscriptionStore.usdToCnyRate)
+            }
+    }
+
+    private var monthChangePct: Double {
+        guard lastMonthTotal > 0 else { return 0 }
+        return (displayTotal - lastMonthTotal) / lastMonthTotal * 100
+    }
+
     var body: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 6) {
@@ -130,17 +225,25 @@ struct SpendingCard: View {
                 Image(systemName: "chart.bar.fill")
                     .font(.system(size: 28))
                     .foregroundColor(Color.appPrimary.opacity(0.6))
-                HStack(spacing: 3) {
-                    Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .bold))
-                    Text("+12%").font(.system(size: 13, weight: .semibold))
+                // Real month-over-month change
+                let pct = monthChangePct
+                let noData = displayTotal == 0 && lastMonthTotal == 0
+                if !noData {
+                    let isUp = pct >= 0
+                    HStack(spacing: 3) {
+                        Image(systemName: isUp ? "arrow.up.right" : "arrow.down.right")
+                            .font(.system(size: 10, weight: .bold))
+                        Text(pct == 0 ? "—" : String(format: "%@%.0f%%", isUp ? "+" : "", pct))
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundColor(isUp ? Color.appSecondary : Color(hex: "4CAF50"))
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background((isUp ? Color.appSecondary : Color(hex: "4CAF50")).opacity(0.15))
+                    .cornerRadius(10)
+                    Text(settings.vsLastMonthLabel)
+                        .font(.system(size: 11))
+                        .foregroundColor(Color.appOnSurfaceVariant)
                 }
-                .foregroundColor(Color.appSecondary)
-                .padding(.horizontal, 10).padding(.vertical, 5)
-                .background(Color.appSecondary.opacity(0.15))
-                .cornerRadius(10)
-                Text(settings.vsLastMonthLabel)
-                    .font(.system(size: 11))
-                    .foregroundColor(Color.appOnSurfaceVariant)
             }
         }
         .padding(20)

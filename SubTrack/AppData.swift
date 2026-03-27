@@ -281,6 +281,12 @@ class SubscriptionStore {
         }
     }
 
+    func togglePause(_ id: UUID) {
+        if let idx = subscriptions.firstIndex(where: { $0.id == id }) {
+            subscriptions[idx].status = subscriptions[idx].status == .paused ? .active : .paused
+        }
+    }
+
     func markCancelled(_ id: UUID) {
         if let idx = subscriptions.firstIndex(where: { $0.id == id }) {
             subscriptions[idx].status = .cancelled

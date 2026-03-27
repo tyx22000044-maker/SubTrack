@@ -115,7 +115,7 @@ struct InsightsView: View {
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(Color.appOnSurface)
                     ForEach(categoryData()) { item in
-                        CategoryBarRow(item: item)
+                        CategoryBarRow(item: item, symbol: symbol)
                     }
                 }
                 .padding(20)
@@ -138,15 +138,27 @@ struct InsightsView: View {
     }
 
     func categoryData() -> [CategoryItem] {
-        let total = store.totalMonthlySpend
+        let isCNY = settings.currencyDefault == 0
+        // Total using same currency conversion as the bar chart
+        let total = store.subscriptions.filter { $0.status == .active }.reduce(0.0) { acc, sub in
+            isCNY
+                ? acc + (sub.currency == .cny ? sub.monthlyAmount : sub.monthlyAmount * SubscriptionStore.usdToCnyRate)
+                : acc + (sub.currency == .usd ? sub.monthlyAmount : sub.monthlyAmount / SubscriptionStore.usdToCnyRate)
+        }
         let pairs: [(String, Subscription.Category, Color)] = [
             (settings.s("娱乐",    "Entertainment"), .entertainment, Color.appPrimary),
             (settings.s("效率工具", "Productivity"),  .productivity,  Color.appSecondary),
             (settings.s("音乐",    "Music"),          .music,         Color.appTertiary),
             (settings.s("云服务",  "Cloud"),          .cloud,         Color(hex: "90caf9")),
+            (settings.s("其他",    "Other"),          .other,         Color.appOutline),
         ]
-        return pairs.map { name, cat, color in
-            let amt = store.subscriptions.filter { $0.category == cat }.reduce(0) { $0 + $1.monthlyAmount }
+        return pairs.compactMap { name, cat, color in
+            let amt = store.subscriptions.filter { $0.status == .active && $0.category == cat }.reduce(0.0) { acc, sub in
+                isCNY
+                    ? acc + (sub.currency == .cny ? sub.monthlyAmount : sub.monthlyAmount * SubscriptionStore.usdToCnyRate)
+                    : acc + (sub.currency == .usd ? sub.monthlyAmount : sub.monthlyAmount / SubscriptionStore.usdToCnyRate)
+            }
+            guard amt > 0 else { return nil }   // hide empty categories
             return CategoryItem(name: name, amount: amt, pct: total > 0 ? amt / total : 0, color: color)
         }
     }
@@ -247,6 +259,7 @@ struct InsightStat: View {
 // MARK: - Category Bar
 struct CategoryBarRow: View {
     let item: InsightsView.CategoryItem
+    var symbol: String = "$"
     var body: some View {
         VStack(spacing: 6) {
             HStack {
@@ -255,7 +268,7 @@ struct CategoryBarRow: View {
                     Text(item.name).font(.system(size: 14)).foregroundColor(Color.appOnSurface)
                 }
                 Spacer()
-                Text(String(format: "$%.0f · %.0f%%", item.amount, item.pct * 100))
+                Text(String(format: "%@%.0f · %.0f%%", symbol, item.amount, item.pct * 100))
                     .font(.system(size: 13)).foregroundColor(Color.appOnSurfaceVariant)
             }
             GeometryReader { g in

@@ -6,6 +6,7 @@ struct SubscriptionDetailView: View {
     @Environment(AppSettings.self) var settings
     @Environment(\.dismiss) var dismiss
     @State private var showCancelAlert = false
+    @State private var showDeleteAlert = false
     @State private var showEdit = false
     @State private var reminderScheduled = false
     @State private var reminderLoading = false
@@ -137,6 +138,7 @@ struct SubscriptionDetailView: View {
 
                     // Action Buttons
                     VStack(spacing: 12) {
+                        // Reminder
                         Button {
                             Task {
                                 reminderLoading = true
@@ -172,31 +174,57 @@ struct SubscriptionDetailView: View {
                             .cornerRadius(14)
                         }
 
-                        Button {
-                        } label: {
-                            HStack {
-                                Image(systemName: "doc.text.fill")
-                                Text(settings.viewReceiptLabel)
-                                    .font(.system(size: 16, weight: .semibold))
+                        // Pause / Resume (only shown when not cancelled)
+                        if subscription.status != .cancelled {
+                            Button {
+                                store.togglePause(subscription.id)
+                                dismiss()
+                            } label: {
+                                HStack {
+                                    Image(systemName: subscription.status == .paused
+                                          ? "play.fill" : "pause.fill")
+                                    Text(subscription.status == .paused
+                                         ? settings.s("恢复订阅", "Resume Subscription")
+                                         : settings.s("暂停订阅", "Pause Subscription"))
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
+                                .foregroundColor(Color.appOnSurface)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color.appSurfaceContainer)
+                                .cornerRadius(14)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .strokeBorder(Color.appOutlineVariant, lineWidth: 1)
+                                )
                             }
-                            .foregroundColor(Color.appOnSurface)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color.appSurfaceContainer)
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .strokeBorder(Color.appOutlineVariant, lineWidth: 1)
-                            )
                         }
 
-                        Button {
-                            showCancelAlert = true
-                        } label: {
-                            Text(settings.cancelSubLabel)
-                                .font(.system(size: 15))
-                                .foregroundColor(Color.appSecondary)
+                        // Divider row for destructive actions
+                        HStack(spacing: 16) {
+                            if subscription.status != .cancelled {
+                                Button {
+                                    showCancelAlert = true
+                                } label: {
+                                    Text(settings.cancelSubLabel)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Color.appSecondary)
+                                        .padding(.vertical, 8)
+                                }
+                            }
+                            Spacer()
+                            Button {
+                                showDeleteAlert = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 13))
+                                    Text(settings.s("永久删除", "Delete"))
+                                        .font(.system(size: 14))
+                                }
+                                .foregroundColor(Color.appSecondary.opacity(0.8))
                                 .padding(.vertical, 8)
+                            }
                         }
                     }
                     .padding(.horizontal, 20)
@@ -234,6 +262,15 @@ struct SubscriptionDetailView: View {
             Button(settings.s("返回", "Cancel"), role: .cancel) { }
         } message: {
             Text(settings.s("此操作将把该订阅标记为已取消。", "This will mark the subscription as cancelled."))
+        }
+        .alert(settings.s("永久删除", "Delete Subscription"), isPresented: $showDeleteAlert) {
+            Button(settings.s("永久删除", "Delete"), role: .destructive) {
+                store.delete(subscription.id)
+                dismiss()
+            }
+            Button(settings.s("取消", "Cancel"), role: .cancel) { }
+        } message: {
+            Text(settings.s("此操作将彻底删除该订阅，无法恢复。", "This will permanently delete the subscription and cannot be undone."))
         }
         .alert(settings.s("需要通知权限", "Notifications Required"), isPresented: $showPermissionAlert) {
             Button(settings.s("去设置", "Open Settings")) {
