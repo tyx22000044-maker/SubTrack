@@ -7,6 +7,31 @@
 
 ---
 
+## [0.5.0] — 2026-03-27 · 数据真实化 & 产品完整性 Real Data & Polish
+
+本次迭代集中消灭了所有假数据、补全了缺失的核心交互，并提升了产品完整性。
+This sprint eliminated all fake/mock data, filled core interaction gaps, and rounded out product completeness.
+
+### ✅ 新增 / Added
+- **暂停 / 恢复订阅**：订阅详情页新增「暂停订阅」/ 「恢复订阅」按钮，一键切换状态，实时持久化；已取消的订阅自动隐藏此按钮。Pause and Resume subscription with a single tap in the detail view.
+- **永久删除订阅**：详情页底部新增「永久删除」按钮（带二次确认），彻底移除订阅并取消关联通知。Permanent delete button with confirmation alert, also cancels scheduled reminder.
+- **收据查看**：订阅详情页「查看收据」按钮现已可用，弹出收据风格 sheet（锯齿纸边、条形码装饰、完整付款信息），支持分享导出为格式化文本。Receipt sheet with torn-paper edges, barcode, and a share button.
+- **隐私政策**：设置页「隐私政策」可点击，展示完整的 in-app 隐私政策（6个章节：数据存储、隐私保护、通知、相册、删除、联系方式），中英双语。Full in-app Privacy Policy sheet, bilingual, 6 sections.
+- **反馈建议**：设置页「反馈建议」跳转 Mail App（`feedback@subtrack.app`）；无邮件客户端时显示复制邮箱 Alert。Feedback taps open Mail app; falls back to copy-email alert.
+- **左滑删除**：订阅列表每行支持原生左滑手势，滑出红色删除按钮，弹簧物理动画；右滑或点击卡片收起。Swipe-left-to-delete on every subscription row with spring animation.
+
+### 🔧 修复 / Fixed
+- **Dashboard 搜索按钮**：首页右上角放大镜原本无功能，现在可展开动画搜索栏，支持跨所有订阅的实时名称搜索。Dashboard magnifying glass now opens an animated live-search bar.
+- **月环比数据**：首页支出卡片的「+12%」原为硬编码假数据，改为根据订阅 `startDate` 实际计算上月与本月支出差值。Month-over-month percentage now computed from real subscription data.
+- **付款历史**：订阅详情页付款记录不再永远显示固定的 3 条假记录，改为从 `nextBillingDate` 按账单周期向前推算真实历史日期（月付最多 12 条、年付最多 6 条），全新订阅显示"暂无记录"空状态。Payment history generated from real billing cycle dates, not mock data.
+- **缓存大小**：设置页缓存大小由假公式（`count × 0.8 + 12.4 MB`）改为直接读取 JSON 持久化文件的真实磁盘字节数。Cache size reads actual file size from disk.
+- **Insights 分类**：「其他」分类现在正确出现在分类占比图中；空分类自动隐藏；货币符号跟随设置切换（¥/\$）并做汇率换算。"Other" category now visible; empty categories hidden; currency symbol respects user setting.
+
+### 🗑 移除 / Removed
+- **设置页假账号区**：移除了写死的手机号（+86 138-0000-0000）、Apple ID（a.thompson@icloud.com）、FaceTime 状态、WhatsApp 状态，这些无意义的假数据已彻底删除。Removed hardcoded fake account section (phone, Apple ID, FaceTime, WhatsApp).
+
+---
+
 ## [0.4.0] — 2026-03-26 · 交互体验修复 UX Polish
 
 本次迭代集中修复了 4 个最影响使用体验的问题。
