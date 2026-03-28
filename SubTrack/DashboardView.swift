@@ -201,49 +201,119 @@ struct SpendingCard: View {
         return (displayTotal - lastMonthTotal) / lastMonthTotal * 100
     }
 
+    // Budget helpers
+    private var budgetProgress: Double {
+        guard settings.monthlyBudget > 0 else { return 0 }
+        return min(displayTotal / settings.monthlyBudget, 1.5)
+    }
+    private var budgetColor: Color {
+        let ratio = displayTotal / max(settings.monthlyBudget, 0.01)
+        if ratio >= 1.0  { return Color(hex: "F44336") }   // red — over budget
+        if ratio >= 0.8  { return Color(hex: "FF9800") }   // orange — 80 %+
+        return Color(hex: "4CAF50")                         // green — healthy
+    }
+    private var budgetStatusText: String {
+        let budget = settings.monthlyBudget
+        let over   = displayTotal - budget
+        if over > 0 {
+            return settings.s(
+                "\(settings.budgetExceededLabel) \(symbol)\(String(format: "%.2f", over))",
+                "\(settings.budgetExceededLabel) \(symbol)\(String(format: "%.2f", over))"
+            )
+        }
+        let remaining = budget - displayTotal
+        return settings.s(
+            "\(settings.budgetRemainingLabel) \(symbol)\(String(format: "%.2f", remaining))",
+            "\(settings.budgetRemainingLabel) \(symbol)\(String(format: "%.2f", remaining))"
+        )
+    }
+
     var body: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(settings.monthlySpendingLabel)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color.appOnSurfaceVariant)
-                    .tracking(0.8)
-                Text(String(format: "%@%.2f", symbol, displayTotal))
-                    .font(.system(size: 38, weight: .bold))
-                    .foregroundColor(Color.appOnSurface)
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
-                HStack(spacing: 4) {
-                    Text(settings.s("预计月支出 · ", "Projected · "))
-                    Text(rateNote)
-                }
-                .font(.system(size: 11))
-                .foregroundColor(Color.appOnSurfaceVariant)
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 8) {
-                Image(systemName: "chart.bar.fill")
-                    .font(.system(size: 28))
-                    .foregroundColor(Color.appPrimary.opacity(0.6))
-                // Real month-over-month change
-                let pct = monthChangePct
-                let noData = displayTotal == 0 && lastMonthTotal == 0
-                if !noData {
-                    let isUp = pct >= 0
-                    HStack(spacing: 3) {
-                        Image(systemName: isUp ? "arrow.up.right" : "arrow.down.right")
-                            .font(.system(size: 10, weight: .bold))
-                        Text(pct == 0 ? "—" : String(format: "%@%.0f%%", isUp ? "+" : "", pct))
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    .foregroundColor(isUp ? Color.appSecondary : Color(hex: "4CAF50"))
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background((isUp ? Color.appSecondary : Color(hex: "4CAF50")).opacity(0.15))
-                    .cornerRadius(10)
-                    Text(settings.vsLastMonthLabel)
-                        .font(.system(size: 11))
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(settings.monthlySpendingLabel)
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(Color.appOnSurfaceVariant)
+                        .tracking(0.8)
+                    Text(String(format: "%@%.2f", symbol, displayTotal))
+                        .font(.system(size: 38, weight: .bold))
+                        .foregroundColor(Color.appOnSurface)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+                    HStack(spacing: 4) {
+                        Text(settings.s("预计月支出 · ", "Projected · "))
+                        Text(rateNote)
+                    }
+                    .font(.system(size: 11))
+                    .foregroundColor(Color.appOnSurfaceVariant)
                 }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 8) {
+                    Image(systemName: "chart.bar.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(Color.appPrimary.opacity(0.6))
+                    // Real month-over-month change
+                    let pct = monthChangePct
+                    let noData = displayTotal == 0 && lastMonthTotal == 0
+                    if !noData {
+                        let isUp = pct >= 0
+                        HStack(spacing: 3) {
+                            Image(systemName: isUp ? "arrow.up.right" : "arrow.down.right")
+                                .font(.system(size: 10, weight: .bold))
+                            Text(pct == 0 ? "—" : String(format: "%@%.0f%%", isUp ? "+" : "", pct))
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundColor(isUp ? Color.appSecondary : Color(hex: "4CAF50"))
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background((isUp ? Color.appSecondary : Color(hex: "4CAF50")).opacity(0.15))
+                        .cornerRadius(10)
+                        Text(settings.vsLastMonthLabel)
+                            .font(.system(size: 11))
+                            .foregroundColor(Color.appOnSurfaceVariant)
+                    }
+                }
+            }
+
+            // ── Budget progress bar (only shown when budget is set) ──────
+            if settings.monthlyBudget > 0 {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(settings.s("月预算", "Monthly Budget"))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color.appOnSurfaceVariant)
+                            .tracking(0.6)
+                        Spacer()
+                        Text(budgetStatusText)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(budgetColor)
+                    }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.appSurfaceHigh)
+                                .frame(height: 6)
+                            Capsule()
+                                .fill(budgetColor)
+                                .frame(
+                                    width: max(6, geo.size.width * CGFloat(min(budgetProgress, 1.0))),
+                                    height: 6
+                                )
+                                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: budgetProgress)
+                        }
+                    }
+                    .frame(height: 6)
+                    HStack {
+                        Text(String(format: "%@%.2f", symbol, displayTotal))
+                            .font(.system(size: 10))
+                            .foregroundColor(Color.appOnSurfaceVariant)
+                        Spacer()
+                        Text(String(format: "%@%.2f", symbol, settings.monthlyBudget))
+                            .font(.system(size: 10))
+                            .foregroundColor(Color.appOnSurfaceVariant)
+                    }
+                }
+                .padding(.top, 2)
             }
         }
         .padding(20)

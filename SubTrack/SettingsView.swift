@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var showExportFormatPicker = false
     @State private var showPrivacySheet = false
     @State private var showFeedbackAlert = false
+    @State private var showBudgetSheet = false
 
     /// Reads the actual byte size of the JSON data file on disk.
     private var realDataSize: String {
@@ -86,9 +87,62 @@ struct SettingsView: View {
                         label: settings.currencyLabel,
                         options: ["¥ CNY", "$ USD"],
                         selectedIndex: settings.currencyDefault,
-                        onChange: { settings.currencyDefault = $0 },
-                        isLast: true
+                        onChange: { settings.currencyDefault = $0 }
                     )
+
+                    // Budget row
+                    Button(action: { showBudgetSheet = true }) {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(hex: "4CAF50").opacity(0.2))
+                                    .frame(width: 34, height: 34)
+                                Image(systemName: "gauge.with.dots.needle.33percent")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(Color(hex: "4CAF50"))
+                            }
+                            Text(settings.budgetLabel)
+                                .font(.system(size: 15))
+                                .foregroundColor(Color.appOnSurface)
+                            Spacer()
+                            Text(settings.monthlyBudget > 0
+                                 ? String(format: "%@%.0f", settings.currencyDefault == 0 ? "¥" : "$", settings.monthlyBudget)
+                                 : settings.budgetNoneLabel)
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.appOnSurfaceVariant)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color.appOutline)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 13)
+                        .overlay(alignment: .bottom) {
+                            Rectangle().fill(Color.appOutlineVariant.opacity(0.5)).frame(height: 0.5).padding(.leading, 62)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    // Replay onboarding
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        settings.hasCompletedOnboarding = false
+                    }) {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.appPrimary.opacity(0.18))
+                                    .frame(width: 34, height: 34)
+                                Image(systemName: "arrow.counterclockwise")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(Color.appPrimary)
+                            }
+                            Text(settings.replayOnboardingLabel)
+                                .font(.system(size: 15))
+                                .foregroundColor(Color.appOnSurface)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 13)
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 20)
 
@@ -194,6 +248,12 @@ struct SettingsView: View {
             Button(settings.s("取消", "Cancel"), role: .cancel) { }
         } message: {
             Text("feedback@subtrack.app")
+        }
+        // Budget sheet
+        .sheet(isPresented: $showBudgetSheet) {
+            BudgetEditView()
+                .environment(settings)
+                .preferredColorScheme(settings.colorScheme)
         }
         // Privacy Policy sheet
         .sheet(isPresented: $showPrivacySheet) {
@@ -613,6 +673,106 @@ struct PrivacyPolicyView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(settings.s("关闭", "Close")) { dismiss() }
                         .foregroundColor(Color.appPrimary)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Budget Edit Sheet
+private struct BudgetEditView: View {
+    @Environment(AppSettings.self) var settings
+    @Environment(\.dismiss) var dismiss
+    @State private var budgetText = ""
+
+    private var symbol: String { settings.currencyDefault == 0 ? "¥" : "$" }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
+                VStack(spacing: 28) {
+                    // Icon
+                    ZStack {
+                        Circle().fill(Color(hex: "4CAF50").opacity(0.15)).frame(width: 72, height: 72)
+                        Image(systemName: "gauge.with.dots.needle.33percent")
+                            .font(.system(size: 30))
+                            .foregroundColor(Color(hex: "4CAF50"))
+                    }
+                    .padding(.top, 32)
+
+                    VStack(spacing: 6) {
+                        Text(settings.budgetLabel)
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundColor(Color.appOnSurface)
+                        Text(settings.s(
+                            "设置后，首页支出卡片将显示预算进度",
+                            "Dashboard will show your budget progress"
+                        ))
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.appOnSurfaceVariant)
+                        .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 32)
+
+                    // Input
+                    HStack(spacing: 10) {
+                        Text(symbol)
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(Color.appOnSurfaceVariant)
+                        TextField("0", text: $budgetText)
+                            .keyboardType(.decimalPad)
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundColor(Color.appOnSurface)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 40).padding(.vertical, 20)
+                    .background(Color.appSurfaceContainer)
+                    .cornerRadius(16)
+                    .padding(.horizontal, 32)
+
+                    Spacer()
+
+                    VStack(spacing: 12) {
+                        Button {
+                            let val = Double(budgetText.replacingOccurrences(of: ",", with: ".")) ?? 0
+                            settings.monthlyBudget = val
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            dismiss()
+                        } label: {
+                            Text(settings.s("保存预算", "Save Budget"))
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(Color.appOnPrimary)
+                                .frame(maxWidth: .infinity).padding(.vertical, 16)
+                                .background(Color.appPrimary).cornerRadius(14)
+                        }
+
+                        if settings.monthlyBudget > 0 {
+                            Button {
+                                settings.monthlyBudget = 0
+                                dismiss()
+                            } label: {
+                                Text(settings.s("清除预算", "Clear Budget"))
+                                    .font(.system(size: 15))
+                                    .foregroundColor(Color.appSecondary)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 48)
+                }
+            }
+            .navigationTitle(settings.setBudgetLabel)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(settings.s("取消", "Cancel")) { dismiss() }
+                        .foregroundColor(Color.appPrimary)
+                }
+            }
+            .onAppear {
+                if settings.monthlyBudget > 0 {
+                    budgetText = String(format: "%.0f", settings.monthlyBudget)
                 }
             }
         }

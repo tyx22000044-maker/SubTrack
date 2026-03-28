@@ -173,6 +173,7 @@ struct SubscriptionDetailView: View {
                     VStack(spacing: 12) {
                         // Reminder
                         Button {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                             Task {
                                 reminderLoading = true
                                 if reminderScheduled {
@@ -207,9 +208,30 @@ struct SubscriptionDetailView: View {
                             .cornerRadius(14)
                         }
 
+                        // Reactivate (only shown when cancelled)
+                        if subscription.status == .cancelled {
+                            Button {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                store.reactivate(subscription.id)
+                                dismiss()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.clockwise.circle.fill")
+                                    Text(settings.reactivateLabel)
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
+                                .foregroundColor(Color.appOnPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color(hex: "4CAF50"))
+                                .cornerRadius(14)
+                            }
+                        }
+
                         // Pause / Resume (only shown when not cancelled)
                         if subscription.status != .cancelled {
                             Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 store.togglePause(subscription.id)
                                 dismiss()
                             } label: {
@@ -316,6 +338,7 @@ struct SubscriptionDetailView: View {
         }
         .alert(settings.s("永久删除", "Delete Subscription"), isPresented: $showDeleteAlert) {
             Button(settings.s("永久删除", "Delete"), role: .destructive) {
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
                 store.delete(subscription.id)
                 dismiss()
             }

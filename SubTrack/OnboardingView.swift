@@ -78,6 +78,7 @@ struct OnboardingView: View {
 
 // MARK: - Page 1: Welcome
 private struct WelcomePage: View {
+    @Environment(AppSettings.self) var settings
     @State private var appeared = false
 
     var body: some View {
@@ -103,14 +104,13 @@ private struct WelcomePage: View {
             .opacity(appeared ? 1 : 0)
             .padding(.bottom, 36)
 
-            // Title
             Text("SubTrack")
                 .font(.system(size: 42, weight: .bold, design: .rounded))
                 .foregroundColor(Color.appOnSurface)
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 20)
 
-            Text("智能追踪每一笔订阅\n掌控你的数字消费")
+            Text(settings.onboardingSubtitle)
                 .font(.system(size: 18))
                 .foregroundColor(Color.appOnSurfaceVariant)
                 .multilineTextAlignment(.center)
@@ -122,8 +122,7 @@ private struct WelcomePage: View {
             Spacer()
             Spacer()
 
-            // CTA
-            SwipeButton(label: "开始使用")
+            SwipeButton(label: settings.onboardingSwipeLabel)
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 30)
                 .padding(.horizontal, 32)
@@ -139,6 +138,7 @@ private struct WelcomePage: View {
 
 // MARK: - Page 2: Profile
 private struct ProfilePage: View {
+    @Environment(AppSettings.self) var settings
     @Binding var userName: String
     @Binding var selectedItem: PhotosPickerItem?
     @Binding var avatarData: Data?
@@ -193,13 +193,13 @@ private struct ProfilePage: View {
             .opacity(appeared ? 1 : 0)
             .scaleEffect(appeared ? 1 : 0.8)
 
-            Text("你叫什么名字？")
+            Text(settings.onboardingNameTitle)
                 .font(.system(size: 28, weight: .bold))
                 .foregroundColor(Color.appOnSurface)
                 .padding(.top, 28)
                 .opacity(appeared ? 1 : 0)
 
-            Text("这将显示在你的个人主页")
+            Text(settings.onboardingNameSubtitle)
                 .font(.system(size: 15))
                 .foregroundColor(Color.appOnSurfaceVariant)
                 .padding(.top, 6)
@@ -210,7 +210,7 @@ private struct ProfilePage: View {
                 Image(systemName: "person")
                     .foregroundColor(Color.appOutline)
                     .font(.system(size: 16))
-                TextField("输入你的名字", text: $userName)
+                TextField(settings.onboardingNameHint, text: $userName)
                     .font(.system(size: 17))
                     .foregroundColor(Color.appOnSurface)
                     .focused($focused)
@@ -241,7 +241,7 @@ private struct ProfilePage: View {
             // Next button
             Button(action: onNext) {
                 HStack(spacing: 8) {
-                    Text("下一步")
+                    Text(settings.onboardingNextLabel)
                         .font(.system(size: 17, weight: .semibold))
                     Image(systemName: "arrow.right")
                         .font(.system(size: 15, weight: .semibold))
@@ -270,6 +270,7 @@ private struct ProfilePage: View {
 
 // MARK: - Page 3: Ready
 private struct ReadyPage: View {
+    @Environment(AppSettings.self) var settings
     let userName: String
     let avatarData: Data?
     let onFinish: () -> Void
@@ -279,7 +280,7 @@ private struct ReadyPage: View {
 
     var displayName: String {
         let name = userName.trimmingCharacters(in: .whitespaces)
-        return name.isEmpty ? "你" : name
+        return name.isEmpty ? settings.s("你", "there") : name
     }
 
     var body: some View {
@@ -303,13 +304,13 @@ private struct ReadyPage: View {
             .opacity(checkOpacity)
             .padding(.bottom, 36)
 
-            Text("你好，\(displayName)！")
+            Text(settings.onboardingGreeting + displayName + "！")
                 .font(.system(size: 36, weight: .bold))
                 .foregroundColor(Color.appOnSurface)
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 16)
 
-            Text("SubTrack 已就绪")
+            Text(settings.onboardingReady)
                 .font(.system(size: 18))
                 .foregroundColor(Color.appPrimary)
                 .padding(.top, 6)
@@ -317,9 +318,9 @@ private struct ReadyPage: View {
                 .offset(y: appeared ? 0 : 16)
 
             VStack(spacing: 10) {
-                FeatureRow(icon: "plus.circle.fill", text: "添加你的订阅服务")
-                FeatureRow(icon: "chart.bar.fill",   text: "追踪每月支出趋势")
-                FeatureRow(icon: "bell.fill",         text: "到期前收到提醒通知")
+                FeatureRow(icon: "plus.circle.fill", text: settings.onboardingFeature1)
+                FeatureRow(icon: "chart.bar.fill",   text: settings.onboardingFeature2)
+                FeatureRow(icon: "bell.fill",         text: settings.onboardingFeature3)
             }
             .padding(.top, 32)
             .opacity(appeared ? 1 : 0)
@@ -328,7 +329,7 @@ private struct ReadyPage: View {
             Spacer()
 
             Button(action: onFinish) {
-                Text("进入 SubTrack")
+                Text(settings.onboardingEnterLabel)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(Color.appOnPrimary)
                     .frame(maxWidth: .infinity)

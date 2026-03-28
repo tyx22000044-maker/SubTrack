@@ -21,15 +21,20 @@ class AppSettings {
     var hasCompletedOnboarding: Bool {
         didSet { UserDefaults.standard.set(hasCompletedOnboarding, forKey: "st_onboarded") }
     }
+    /// 0 means no budget set
+    var monthlyBudget: Double {
+        didSet { UserDefaults.standard.set(monthlyBudget, forKey: "st_monthlyBudget") }
+    }
 
     init() {
         let d = UserDefaults.standard
-        appearanceIndex        = d.object(forKey: "st_appearance") != nil ? d.integer(forKey: "st_appearance") : 1
-        language               = d.object(forKey: "st_language")   != nil ? d.integer(forKey: "st_language")   : 0
-        currencyDefault        = d.object(forKey: "st_currency")   != nil ? d.integer(forKey: "st_currency")   : 0
+        appearanceIndex        = d.object(forKey: "st_appearance")     != nil ? d.integer(forKey: "st_appearance") : 1
+        language               = d.object(forKey: "st_language")       != nil ? d.integer(forKey: "st_language")   : 0
+        currencyDefault        = d.object(forKey: "st_currency")       != nil ? d.integer(forKey: "st_currency")   : 0
         userName               = d.string(forKey: "st_userName") ?? ""
         userAvatarData         = d.data(forKey: "st_avatarData")
         hasCompletedOnboarding = d.bool(forKey: "st_onboarded")
+        monthlyBudget          = d.object(forKey: "st_monthlyBudget")  != nil ? d.double(forKey: "st_monthlyBudget") : 0
     }
 
     var colorScheme: ColorScheme? {
@@ -127,6 +132,34 @@ extension AppSettings {
     var activeLabel: String    { s("活跃", "ACTIVE") }
     var pausedLabel: String    { s("已暂停", "PAUSED") }
     var cancelledLabel: String { s("已取消", "CANCELLED") }
+
+    // Budget
+    var budgetLabel: String          { s("月度预算", "Monthly Budget") }
+    var setBudgetLabel: String        { s("设置预算", "Set Budget") }
+    var budgetNoneLabel: String       { s("未设置", "Not set") }
+    var budgetRemainingLabel: String  { s("剩余", "remaining") }
+    var budgetExceededLabel: String   { s("超出预算", "Over budget") }
+
+    // Reactivate
+    var reactivateLabel: String       { s("重新激活", "Reactivate") }
+
+    // Onboarding strings (bilingual)
+    var onboardingSubtitle: String    { s("智能追踪每一笔订阅\n掌控你的数字消费", "Smart tracking for every subscription\nTake control of your digital spending") }
+    var onboardingSwipeLabel: String  { s("滑动开始", "Swipe to Begin") }
+    var onboardingNameTitle: String   { s("你叫什么名字？", "What's your name?") }
+    var onboardingNameSubtitle: String { s("这将显示在你的个人主页", "This will appear on your profile") }
+    var onboardingNameHint: String    { s("输入你的名字", "Enter your name") }
+    var onboardingNextLabel: String   { s("下一步", "Next") }
+    var onboardingEnterLabel: String  { s("进入 SubTrack", "Enter SubTrack") }
+    var onboardingFeature1: String    { s("添加你的订阅服务", "Add your subscriptions") }
+    var onboardingFeature2: String    { s("追踪每月支出趋势", "Track monthly spending") }
+    var onboardingFeature3: String    { s("到期前收到提醒通知", "Get notified before renewal") }
+    var onboardingReady: String       { s("SubTrack 已就绪", "SubTrack is ready") }
+    var onboardingGreeting: String    { s("你好，", "Hello, ") }
+
+    // Settings extras
+    var replayOnboardingLabel: String { s("重看新手引导", "Replay Onboarding") }
+    var annualSummaryLabel: String    { s("今年支出", "Year to Date") }
 
     // Billing cycle display
     func billingCycleDisplay(_ cycle: Subscription.BillingCycle) -> String {
@@ -283,8 +316,44 @@ class SubscriptionStore {
 
     func togglePause(_ id: UUID) {
         if let idx = subscriptions.firstIndex(where: { $0.id == id }) {
-            subscriptions[idx].status = subscriptions[idx].status == .paused ? .active : .paused
+            if subscriptions[idx].status == .paused {
+                // Resuming — advance nextBillingDate to future if it expired during pause
+                subscriptions[idx].status = .active
+                subscriptions[idx].nextBillingDate = advanceToFuture(
+                    subscriptions[idx].nextBillingDate,
+                    cycle: subscriptions[idx].billingCycle
+                )
+            } else {
+                subscriptions[idx].status = .paused
+            }
         }
+    }
+
+    func reactivate(_ id: UUID) {
+        if let idx = subscriptions.firstIndex(where: { $0.id == id }) {
+            subscriptions[idx].status = .active
+            subscriptions[idx].nextBillingDate = advanceToFuture(
+                subscriptions[idx].nextBillingDate,
+                cycle: subscriptions[idx].billingCycle
+            )
+        }
+    }
+
+    /// Advances a date forward by billing cycle until it's in the future.
+    private func advanceToFuture(_ date: Date, cycle: Subscription.BillingCycle) -> Date {
+        let cal = Calendar.current
+        let (component, value): (Calendar.Component, Int) = {
+            switch cycle {
+            case .monthly: return (.month,      1)
+            case .yearly:  return (.year,       1)
+            case .weekly:  return (.weekOfYear, 1)
+            }
+        }()
+        var next = date
+        while next <= Date() {
+            next = cal.date(byAdding: component, value: value, to: next) ?? next
+        }
+        return next
     }
 
     func markCancelled(_ id: UUID) {

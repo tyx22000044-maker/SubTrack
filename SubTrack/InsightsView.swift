@@ -62,6 +62,27 @@ struct InsightsView: View {
     var monthlyAvg: Double  { totalSpend / Double(periodMonths[periodIndex]) }
     var peakAmount: Double  { currentData.map(\.amount).max() ?? 0 }
 
+    // Year-to-date total (Jan 1 of current year → now)
+    var yearToDateTotal: Double {
+        let cal = Calendar.current
+        let now = Date()
+        let isCNY = settings.currencyDefault == 0
+        guard let jan1 = cal.date(from: DateComponents(year: cal.component(.year, from: now), month: 1, day: 1)) else { return 0 }
+        return store.subscriptions
+            .filter { $0.status == .active && $0.startDate <= now }
+            .reduce(0.0) { acc, sub in
+                // Count months from max(startDate, jan1) to now
+                let from = max(sub.startDate, jan1)
+                let months = max(1, cal.dateComponents([.month], from: from, to: now).month ?? 1)
+                let contribution = sub.monthlyAmount * Double(months)
+                if isCNY {
+                    return acc + (sub.currency == .cny ? contribution : contribution * SubscriptionStore.usdToCnyRate)
+                } else {
+                    return acc + (sub.currency == .usd ? contribution : contribution / SubscriptionStore.usdToCnyRate)
+                }
+            }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -70,6 +91,21 @@ struct InsightsView: View {
                     .foregroundColor(Color.appOnSurface)
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
+
+                if store.subscriptions.isEmpty {
+                    // ── Empty state ──────────────────────────────
+                    VStack(spacing: 16) {
+                        Image(systemName: "chart.bar.xaxis")
+                            .font(.system(size: 52))
+                            .foregroundColor(Color.appOutline)
+                        Text(settings.s("添加订阅后查看财务洞察", "Add subscriptions to see insights"))
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(Color.appOnSurfaceVariant)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 80)
+                } else {
 
                 // Period Selector
                 HStack(spacing: 0) {
@@ -122,11 +158,35 @@ struct InsightsView: View {
                 .glassCard()
                 .padding(.horizontal, 20)
 
+                // Annual Summary
+                HStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(settings.annualSummaryLabel)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color.appOnSurfaceVariant)
+                            .tracking(0.8)
+                        Text(String(format: "%@%.0f", symbol, yearToDateTotal))
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(Color.appOnSurface)
+                        Text(settings.s("今年 1 月 1 日起累计", "Since Jan 1 this year"))
+                            .font(.system(size: 12))
+                            .foregroundColor(Color.appOutline)
+                    }
+                    Spacer()
+                    Image(systemName: "calendar.circle.fill")
+                        .font(.system(size: 36))
+                        .foregroundColor(Color.appPrimary.opacity(0.5))
+                }
+                .padding(20)
+                .glassCard()
+                .padding(.horizontal, 20)
+
                 // AI Suggestions — Strategic Preview
                 AIInsightsPreview()
                     .padding(.horizontal, 20)
 
                 Spacer().frame(height: 90)
+                } // end else (non-empty)
             }
         }
         .scrollIndicators(.hidden)
